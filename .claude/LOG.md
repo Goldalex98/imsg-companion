@@ -18,3 +18,8 @@ Append only. Newest at the bottom. Public: no personal data.
 
 ## 2026-11-15 09:02 ET — Task 6
 - PR #5 merged `cd4538e` (PR CI green). `UnsendRelay` re-posts `.unsent` watcher events with the saved cursor, so the cursor never moves. `UplinkSerializer` carries every batch, so posts go one at a time; its test fails with the queue removed. Rulings: an unsend past the saved cursor is left to the reading loop; a 4xx rejection drops the re-post; re-posts carry Contacts names. Not run: a real `MessageWatcher`, and HomeChat's update path.
+
+## 2026-11-15 09:11 ET — Task 7
+- PR #6 merged `0068d31` (PR CI green). The `chat.service_name` check is gone, and `sent_service` comes from the read-back row. The poll runs while sends are off or paused, but a send fetched then is ignored: no ledger record, no result. Removing that gate fails 4 tests. Baseline: the global max ROWID. Read-back pages to the end across twin chats.
+- Found while testing: without `message.associated_message_guid`, IMsgCore returns an empty guid for every row. The fixture now has the column, and a reader test asserts the guid. Real `chat.db` has it.
+- Deferred minors from the safety review: twins ignore chat style; one more off/paused check before the ledger write would narrow a window; link texts may read back as `no_readback` (ambiguous); preflight isn't serialized with a dispatch. No real send has run: the AppleScript against Messages and the SMS/RCS routes are unproven.

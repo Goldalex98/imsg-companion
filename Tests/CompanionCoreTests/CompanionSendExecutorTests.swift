@@ -484,9 +484,36 @@ final class CompanionSendExecutorTests: XCTestCase {
         let exec = executor()
         let status = await exec.cycle()
         guard case .stopped = status.state else { return XCTFail("\(status.state)") }
+        uplink.control = SendsPage.Control(paused: true)
+        let next = await exec.cycle()
+        guard case .stopped = next.state else { return XCTFail("\(next.state)") }
+        // Halted, the channel still polls so a pause from WhatsApp arrives (design §5.5), but never sends.
+        XCTAssertEqual(uplink.fetches, 2)
+        XCTAssertEqual(controls.values.last, SendsPage.Control(paused: true))
+        XCTAssertEqual(runner.calls.count, 1, "snd-2 is never dispatched while stopped")
+        XCTAssertNil(ledger.record("snd-2"))
+    }
+
+    func test_tokenRejectedDuringControlPollStopsPolling() async {
+        messagesWrites()
+        uplink.pages = [[send()]]
+        uplink.resultErrors = [.conflict]
+        let exec = executor()
         _ = await exec.cycle()
-        XCTAssertEqual(uplink.fetches, 1, "no further fetches while stopped")
-        XCTAssertEqual(runner.calls.count, 1)
+        uplink.fetchErrors = [.unauthorized]
+        _ = await exec.cycle()
+        clock.advance(120)
+        _ = await exec.cycle()
+        XCTAssertEqual(uplink.fetches, 2, "a 401 on the control poll stops polling like any rejected token")
+    }
+
+    func test_rejectedTokenStopsPolling() async {
+        uplink.fetchErrors = [.unauthorized]
+        let exec = executor()
+        let status = await exec.cycle()
+        guard case .stopped = status.state else { return XCTFail("\(status.state)") }
+        _ = await exec.cycle()
+        XCTAssertEqual(uplink.fetches, 1, "a rejected token isn't polled again until it changes")
     }
 
     func test_resultRetryBacksOff() async {

@@ -339,7 +339,7 @@ final class CompanionServiceTests: XCTestCase {
         XCTAssertEqual(status.state, .noDatabaseAccess)
     }
 
-    func test_cursorAheadOfDatabaseStopsAndRecoversWhenCleared() async throws {
+    func test_cursorAheadOfDatabaseStopsAndRecoversWhenReset() async throws {
         try configure(cursor: 10_000)
         let f = try CompanionFixture()
         let chat = try directChat(f)
@@ -351,10 +351,44 @@ final class CompanionServiceTests: XCTestCase {
         XCTAssertEqual(savedCursor, 10_000, "the cursor is never lowered on its own")
         let again = await s.tick()
         XCTAssertEqual(again.state, status.state, "still stopped on the next tick")
-        try configure(cursor: nil)
+        try ConfigEdits.resetCursor(configURL: configURL)
         _ = await s.tick()
-        XCTAssertEqual(uplink.batches.count, 1, "clearing the cursor lets the next tick start again")
+        XCTAssertEqual(uplink.batches.count, 1, "reset-cursor lets the next tick start again")
         XCTAssertTrue(uplink.batches[0].firstRun)
+    }
+
+    // Final review I3: new rows filling the gap below the old cursor must not quietly resume reading past them.
+    func test_databaseReplacedStaysStoppedAsNewRowsArrive() async throws {
+        try configure(cursor: 45)
+        let f = try CompanionFixture()
+        let chat = try directChat(f)
+        for _ in 0..<40 { try f.addMessage(chats: [chat], text: "m", date: clock.now - 60, handle: alice) }
+        let s = service(f.url.path)
+        _ = await s.tick()
+        for _ in 0..<10 { try f.addMessage(chats: [chat], text: "new", date: clock.now - 10, handle: alice) }
+        let later = await s.tick()
+        XCTAssertEqual(later.state, .stopped("database_replaced"))
+        let restarted = await service(f.url.path).tick()
+        XCTAssertEqual(restarted.state, .stopped("database_replaced"), "kept across a restart")
+        XCTAssertTrue(uplink.batches.isEmpty, "rows 41-45 are never skipped")
+        XCTAssertEqual(savedCursor, 45)
+    }
+
+    // Reset days after the replacement: rows that arrived since the replacement are still read (the first-run
+    // window counts back from the replacement, not from the reset).
+    func test_resetCursorReadsFromTheReplacementWindow() async throws {
+        try configure(cursor: 45)
+        let f = try CompanionFixture()
+        let chat = try directChat(f)
+        for _ in 0..<40 { try f.addMessage(chats: [chat], text: "old", date: clock.now - 10 * 86_400, handle: alice) }
+        let s = service(f.url.path)
+        _ = await s.tick()
+        let replaced = clock.now
+        clock.advance(5 * 86_400)
+        for _ in 0..<3 { try f.addMessage(chats: [chat], text: "new", date: replaced + 86_400, handle: alice) }
+        try ConfigEdits.resetCursor(configURL: configURL)
+        _ = await s.tick()
+        XCTAssertEqual(uplink.batches.first?.messages.map(\.rowid), [41, 42, 43])
     }
 
     func test_deletingTheNewestMessagesIsNotAReset() async throws {

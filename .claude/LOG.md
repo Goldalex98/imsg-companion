@@ -48,3 +48,24 @@ Append only. Newest at the bottom. Public: no personal data.
   - Rollback also stops the updater job.
   - U8 forces a rollback by pausing the agent locally before an update. "HomeChat unreachable" is the agent stopped for over 30 minutes.
   - "A send in progress defers" can't be staged with sends off, so it stays test-only.
+
+## 2026-11-15 11:00 ET — final review and its fix pass
+- A fresh Opus reviewer read the whole branch. No Critical findings. Four Important ones, each fixed with a test that failed first:
+  - The updater's swap could leave no app at all, and the updater runs from that app. The new app is now staged beside the old one and swapped in by checked renames.
+  - A stopped send channel also cut off HomeChat's pause. A control-only poll now keeps it reachable.
+  - `database_replaced` cleared itself once new rows passed the old cursor. It is now kept in the config until `reset-cursor`.
+  - A pause at update time always rolled back. The updater now skips that night.
+- The send-safety reviewer then found five holes in those fixes, all fixed test-first:
+  - A failed rename in a rollback could nest the old app inside the bad one.
+  - A pause during the build or the health wait condemned a good commit.
+  - An agent left stopped stayed stopped. The updater now starts it again, so cutover stops the updater job too.
+  - A 401 on the control poll kept polling.
+  - `reset-cursor` counted the first-run window back from the reset, not from the replacement.
+- Deferred minors (the plan's ledger):
+  - The unsend watcher stays on the old inode after a replacement.
+  - A stray SIGTERM exits 0, so launchd doesn't restart it.
+  - Updater subprocesses have no timeout.
+  - `flush()` can post the same unsend twice.
+  - Expiry relies on the Mac's clock.
+  - From the second review: unchecked `try?` on the sticky write, an unchecked `rm` of `previous`, and `stopAgent` giving up silently after 130 s.
+- Tests: 272 pass on the MacBook. Nothing ran against real data, and nothing was sent.

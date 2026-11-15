@@ -108,15 +108,18 @@ public actor CompanionService {
             return update(.offline(retryIn: retryAt.timeIntervalSince(now())), config: config)
         }
 
+        if config.databaseReplacedAt != nil { closeReader(); return update(.stopped(Self.resetStatus), config: config) }
         dropReaderIfFileReplaced()
         let reader: ChatQueries
         do throws(ChatQueryError) {
             reader = try openReader()
             // A cursor past the highest ROWID ever handed out means the database was reset (deleting the newest
-            // messages doesn't count: see highWaterRowID). Not sticky: it is re-checked each tick, so clearing the
-            // cursor lets the next tick start again. The cursor itself is never lowered here.
+            // messages doesn't count: see highWaterRowID). Sticky, in the config: new rows climbing past the old
+            // cursor must not resume reading over the gap. `reset-cursor` clears it. The cursor is never lowered here.
             if let cursor = config.cursor, try reader.highWaterRowID() < cursor {
                 caughtUp = false
+                let at = now()
+                try? CompanionConfig.update(at: configURL) { $0.databaseReplacedAt = $0.databaseReplacedAt ?? at }
                 return update(.stopped(Self.resetStatus), config: config)
             }
             let version = try reader.dataVersion()
@@ -136,7 +139,7 @@ public actor CompanionService {
             } else if let cursor = firstRunCursor {
                 start = cursor
             } else {
-                if let recent = try reader.firstRowID(since: now() - Self.firstRunWindow) {
+                if let recent = try reader.firstRowID(since: config.firstRunSince ?? now() - Self.firstRunWindow) {
                     start = recent - 1
                 } else {
                     start = try reader.maxRowID()
@@ -310,7 +313,7 @@ public actor CompanionService {
             firstRunCursor = cursor
             return
         }
-        try? CompanionConfig.update(at: configURL) { $0.cursor = cursor }
+        try? CompanionConfig.update(at: configURL) { $0.cursor = cursor; $0.firstRunSince = nil }
         config = CompanionConfig.load(from: configURL)
         firstRunCursor = nil
     }

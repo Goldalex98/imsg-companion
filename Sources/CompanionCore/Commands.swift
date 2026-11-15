@@ -4,7 +4,7 @@ import Foundation
 /// through the executor, after Alex approved the exact text.
 public enum Command: Equatable, Sendable {
     case run, setup(url: URL), status, pause, resume, sendsOn, sendsOff, preflight(chatRowID: Int64), promptContacts,
-         update
+         update, resetCursor
 
     public static func parse(_ args: [String]) -> Command? {
         switch args {
@@ -16,6 +16,7 @@ public enum Command: Equatable, Sendable {
         case ["sends", "off"]: .sendsOff
         case ["prompt-contacts"]: .promptContacts
         case ["update"]: .update
+        case ["reset-cursor"]: .resetCursor
         case let a where a.count == 2 && a[0] == "setup": URL(string: a[1]).map { .setup(url: $0) }
         case let a where a.count == 2 && a[0] == "preflight":
             Int64(a[1]).flatMap { $0 > 0 ? .preflight(chatRowID: $0) : nil }
@@ -29,6 +30,7 @@ public enum Command: Equatable, Sendable {
                imsg-companion status | pause | resume | sends on | sends off
                imsg-companion preflight <chat-rowid>  (checks a chat without sending)
                imsg-companion update                  (the nightly updater's run)
+               imsg-companion reset-cursor            (after database_replaced: read again from the first-run window)
         """
 }
 
@@ -36,6 +38,16 @@ public enum Command: Equatable, Sendable {
 public enum ConfigEdits {
     public static func setPaused(_ paused: Bool, configURL: URL) throws {
         try CompanionConfig.update(at: configURL) { $0.paused = paused }
+    }
+
+    /// After a `database_replaced` stop: forget the cursor, so reading starts again from the first-run window
+    /// before the replacement, however long ago that was. HomeChat ignores rows it already holds (by guid).
+    public static func resetCursor(configURL: URL) throws {
+        try CompanionConfig.update(at: configURL) {
+            $0.firstRunSince = $0.databaseReplacedAt.map { $0 - CompanionService.firstRunWindow }
+            $0.cursor = nil
+            $0.databaseReplacedAt = nil
+        }
     }
 
     public static func setSendsEnabled(_ enabled: Bool, configURL: URL) throws {

@@ -113,8 +113,9 @@ Any merged PR gives `main` a new green head.
 |------|--------|------|
 | No update | installed sha equals `main`'s green head | result `none`; app unchanged |
 | An update installs | a newer green head on `main` | `installed` with the new sha; health mark for the new version within 180 s; no Keychain prompt (if `codesign` prompts the first time, Alex picks Always Allow once) |
-| Health check fails → rollback | newer green head, and the agent paused locally first (`"$BIN" pause`), so it never writes `read_ok_at` | `rolled_back`; the previous sha is running again; a second kickstart doesn't retry that sha; then `"$BIN" resume` |
-| HomeChat unreachable | agent stopped (`launchctl bootout "$UID_GUI/$AGENT"`) for over 30 minutes, so the newest successful HomeChat call is older than the updater's 30-minute window | result `none`; app unchanged; then bootstrap the agent again |
+| Paused skips the night | newer green head, agent paused (`"$BIN" pause`) | result `none`; app unchanged; then `"$BIN" resume` |
+| Health check fails → rollback | newer green head, and Alex switches the agent's Full Disk Access off first (System Settings), so the new build can't read and writes no `read_ok_at` | `rolled_back`; the previous sha is running again; a second kickstart doesn't retry that sha; then Alex switches Full Disk Access back on |
+| HomeChat unreachable | agent stopped (`launchctl bootout "$UID_GUI/$AGENT"`) for over 30 minutes, so the newest successful HomeChat call is older than the updater's 30-minute window | result `none`; app unchanged; the updater starts the stopped agent again first, as it does for any agent left down |
 | A send in progress defers | can't be set up with sends off | covered by `UpdaterTests` only; checked live only if a Stage S night happens to have a send in progress. Recorded as test-only, not as passed. |
 
 ## U9: Contacts on: an unsaved number isn't flagged and is counted
@@ -128,5 +129,7 @@ Any merged PR gives `main` a new green head.
 - **Pass:**
   - No flag for that text.
   - The update's "N texts from unsaved numbers, not checked" includes it.
+
+If status ever shows `last_error: database_replaced` (a restored or replaced `chat.db`), reading stays stopped until Claude runs `"$BIN" reset-cursor` on Alex's say-so. Reading then starts again from 3 days before the replacement, however long ago that was. HomeChat ignores the rows it already holds.
 
 When every case passes, Stage U is done. Record the result in STATUS and LOG: case IDs and pass or fail, no data.

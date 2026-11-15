@@ -6,16 +6,19 @@ public protocol MessagePaging: Sendable {
     func page(after rowID: Int64, limit: Int) throws -> MessagesAfterPage
 }
 
-/// Read-only: `MessageStore` opens chat.db with `mode=ro`. Reactions are included so they reach HomeChat as kind
-/// `reaction`; `nextRowID` is the last physical row scanned, so the cursor passes rows IMsgCore hides.
+/// Read-only: `MessageStore` opens chat.db with `mode=ro`. The reader includes reactions so they reach HomeChat as
+/// kind `reaction`; the send read-back leaves them out. `nextRowID` is the last physical row scanned, so a cursor
+/// passes rows IMsgCore hides.
 public struct IMsgCorePaging: MessagePaging, @unchecked Sendable {
     private let store: MessageStore
+    private let includeReactions: Bool
 
-    public init(path: String) throws {
+    public init(path: String, includeReactions: Bool = true) throws {
         store = try MessageStore(path: path)
+        self.includeReactions = includeReactions
     }
 
     public func page(after rowID: Int64, limit: Int) throws -> MessagesAfterPage {
-        try store.messagesAfterPage(afterRowID: rowID, chatID: nil, limit: limit, includeReactions: true)
+        try store.messagesAfterPage(afterRowID: rowID, chatID: nil, limit: limit, includeReactions: includeReactions)
     }
 }

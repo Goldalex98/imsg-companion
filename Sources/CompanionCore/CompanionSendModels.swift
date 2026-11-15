@@ -99,7 +99,10 @@ public struct CompanionOutgoingRow: Equatable, Sendable {
     public let body: String?
     public let error: Int
     public let isSent: Bool
-    public init(rowID: Int64, guid: String, body: String?, error: Int, isSent: Bool) {
+    /// The row's own `service` (iMessage, SMS, RCS): the route Messages chose.
+    public let service: String?
+    public init(rowID: Int64, guid: String, body: String?, error: Int, isSent: Bool, service: String? = nil) {
         self.rowID = rowID; self.guid = guid; self.body = body; self.error = error; self.isSent = isSent
+        self.service = service
     }
 }

@@ -27,7 +27,7 @@ final class CompanionFixture {
         CREATE TABLE chat_handle_join(chat_id INTEGER, handle_id INTEGER);
         CREATE TABLE chat_message_join(chat_id INTEGER, message_id INTEGER);
         CREATE TABLE message(ROWID INTEGER PRIMARY KEY AUTOINCREMENT, guid TEXT, text TEXT, attributedBody BLOB, date INTEGER,
-            is_from_me INTEGER, handle_id INTEGER, associated_message_type INTEGER, thread_originator_guid TEXT,
+            is_from_me INTEGER, handle_id INTEGER, associated_message_guid TEXT, associated_message_type INTEGER, thread_originator_guid TEXT,
             cache_has_attachments INTEGER, item_type INTEGER DEFAULT 0, service TEXT DEFAULT 'iMessage'\(messageSend));
         CREATE TABLE attachment(ROWID INTEGER PRIMARY KEY, guid TEXT, filename TEXT);
         CREATE TABLE message_attachment_join(message_id INTEGER, attachment_id INTEGER);

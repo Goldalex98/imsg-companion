@@ -29,3 +29,31 @@ jobs:
         run: swift test
       - name: App bundle (ad hoc)
         run: scripts/build-app.sh --verify-only
+
+  # Dependabot's IMsgCore bumps only (Alex, 2026-11-14). Every other PR is merged by hand on green.
+  automerge:
+    needs: test
+    if: github.event_name == 'pull_request' && github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PR: ${{ github.event.pull_request.number }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - name: Merge a dependency-only bump
+        run: |
+          files="$(gh pr diff "$PR" --name-only)"
+          echo "$files"
+          if [ -z "$files" ] || echo "$files" | grep -qvxE 'Package\.swift|Package\.resolved'; then
+            echo "touches more than Package.swift/Package.resolved: left for review"
+            exit 0
+          fi
+          gh pr merge "$PR" --merge --match-head-commit "$HEAD_SHA"
+          # A merge made with GITHUB_TOKEN starts no push run, so start main's CI by hand.
+          gh workflow run ci.yml --ref main

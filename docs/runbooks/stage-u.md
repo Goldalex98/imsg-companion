@@ -47,11 +47,17 @@ Hard rules:
 
 ## U4: a question is flagged, and Alex's reply clears it
 - **Action:**
-  - A test contact asks Alex a question.
-  - Alex replies from his phone or the Mac.
-- **Who:** Alex.
-- **Check:** Alex sees the flag in HomeChat on his phone, then sees it gone.
-- **Pass:** flagged once, then cleared by the reply.
+  1. A test contact asks Alex a question. Alex does **not** reply yet.
+  2. Wait for HomeChat's next flagger run (every 30 minutes, 07:00–22:00), or HomeChat's session runs one pass by hand.
+  3. Once HomeChat's session reports the thread flagged, Alex replies.
+- **Who:** Alex, plus HomeChat's session for the flag state.
+- **Check:** HomeChat's flag state for the thread before and after the reply.
+- **Pass:** a flag opens on the question, then closes with reason `replied` when the reply is stored.
+- **Why not "seen on the phone":**
+  - Setting a flag sends nothing.
+  - A flag becomes visible 3 hours after the newest inbound text, and only the 08:00 and 17:30 updates list visible flags.
+  - The one exception is a question whose date or time falls within 48 hours. That one is visible at once and gets a single nudge, outside 22:00–06:30.
+  - To see it on the phone as well, use such a question.
 
 ## U5: the fork's open checks 5–8
 - **Quit-and-reopen catch-up:**
@@ -120,7 +126,7 @@ Any merged PR gives `main` a new green head.
 
 ## U9: Contacts on: an unsaved number isn't flagged and is counted
 - **Action:**
-  - Alex allows Contacts when `setup` asks (cutover step 5).
+  - Alex allows Contacts when `setup` asks (cutover step 5). A grant made while the agent runs shows only after it restarts (`launchctl kickstart -k "$UID_GUI/$AGENT"`), because macOS caches the answer per process.
   - A number not in his contacts texts him a question.
 - **Who:** Alex.
 - **Check:**

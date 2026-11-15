@@ -21,7 +21,7 @@ FORK_CFG="$HOME/Library/Application Support/msgblast-iMessage/companion.json"
 
 | # | Step | Who | Check | Pass |
 |---|------|-----|-------|------|
-| 0a | Install `main`'s green head with `scripts/install.sh` (the installed build may predate `update`). | Claude | `codesign -dv "$HOME/Applications/ImsgCompanion.app" 2>&1 \| grep -c '^Authority=Apple Development'` and `/usr/libexec/PlistBuddy -c 'Print :ImsgCompanionGitSHA' .../Info.plist` | `1`, and the sha equals `main`'s head |
+| 0a | Install `main`'s green head with `scripts/install.sh` (the installed build may predate `update`). | Claude | `codesign -dvv "$HOME/Applications/ImsgCompanion.app" 2>&1 \| grep -c '^Authority=Apple Development'` (`-dv` prints no Authority lines) and `/usr/libexec/PlistBuddy -c 'Print :ImsgCompanionGitSHA' .../Info.plist` | `1`, and the sha equals `main`'s head |
 | 0b | Grant Full Disk Access to `~/Applications/ImsgCompanion.app`. | Alex (System Settings) | `"$BIN" status` → the running agent's snapshot | `full_disk_access: granted` |
 
 ## Order

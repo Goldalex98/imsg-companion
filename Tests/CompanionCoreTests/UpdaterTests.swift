@@ -160,13 +160,30 @@ final class UpdaterTests: XCTestCase {
 
     func test_githubParsing() throws {
         XCTAssertEqual(try GitHubUpdateSource.parseHead(Data(#"{"sha": "abc", "commit": {}}"#.utf8)), "abc")
-        let runs = #"{"workflow_runs": [{"conclusion": "success", "created_at": "2026-11-15T10:00:00Z"},"#
-            + #" {"conclusion": "failure", "created_at": "2026-11-15T09:00:00Z"}]}"#
-        XCTAssertTrue(try GitHubUpdateSource.parseGreen(Data(runs.utf8)))
-        let red = #"{"workflow_runs": [{"conclusion": null, "created_at": "2026-11-15T11:00:00Z"},"#
-            + #" {"conclusion": "success", "created_at": "2026-11-15T10:00:00Z"}]}"#
-        XCTAssertFalse(try GitHubUpdateSource.parseGreen(Data(red.utf8)), "the newest run decides")
-        XCTAssertFalse(try GitHubUpdateSource.parseGreen(Data(#"{"workflow_runs": []}"#.utf8)))
+        func run(_ conclusion: String?, _ at: String, event: String = "push", branch: String = "main",
+                 sha: String = "abc") -> String {
+            let value = conclusion.map { "\"\($0)\"" } ?? "null"
+            return #"{"conclusion": \#(value), "created_at": "\#(at)", "event": "\#(event)", "#
+                + #""head_branch": "\#(branch)", "head_sha": "\#(sha)"}"#
+        }
+        func green(_ runs: String...) throws -> Bool {
+            try GitHubUpdateSource.parseGreen(Data(#"{"workflow_runs": [\#(runs.joined(separator: ","))]}"#.utf8), sha: "abc")
+        }
+        XCTAssertTrue(try green(run("success", "2026-11-15T10:00:00Z"), run("failure", "2026-11-15T09:00:00Z")))
+        XCTAssertFalse(try green(run(nil, "2026-11-15T11:00:00Z"), run("success", "2026-11-15T10:00:00Z")),
+                       "the newest run decides")
+        XCTAssertFalse(try green())
+        // Main's CI after a Dependabot automerge is started by hand (workflow_dispatch).
+        XCTAssertTrue(try green(run("success", "2026-11-15T10:00:00Z", event: "workflow_dispatch")))
+        // Only main's own runs count: a pull request run (a fork's branch can be called main), another branch or
+        // another commit never makes a sha green.
+        XCTAssertFalse(try green(run("success", "2026-11-15T10:00:00Z", event: "pull_request")))
+        XCTAssertFalse(try green(run("success", "2026-11-15T10:00:00Z", event: "pull_request_target")))
+        XCTAssertFalse(try green(run("success", "2026-11-15T10:00:00Z", branch: "feature")))
+        XCTAssertFalse(try green(run("success", "2026-11-15T10:00:00Z", sha: "def")))
+        XCTAssertFalse(try green(run("failure", "2026-11-15T10:00:00Z"),
+                                 run("success", "2026-11-15T11:00:00Z", event: "pull_request")),
+                       "a newer pull request run doesn't outvote main's red run")
         let pulls = #"[{"user": {"login": "someone"}, "created_at": "2026-11-01T00:00:00Z"},"#
             + #" {"user": {"login": "dependabot[bot]"}, "created_at": "2026-11-10T00:00:00Z"},"#
             + #" {"user": {"login": "dependabot[bot]"}, "created_at": "2026-11-12T00:00:00Z"}]"#

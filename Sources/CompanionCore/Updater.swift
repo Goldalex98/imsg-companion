@@ -214,7 +214,7 @@ public struct GitHubUpdateSource: UpdateSource {
     public func headSHA() async throws -> String { try Self.parseHead(await get("/commits/main")) }
 
     public func isGreen(sha: String) async throws -> Bool {
-        try Self.parseGreen(await get("/actions/workflows/ci.yml/runs?branch=main&head_sha=\(sha)&per_page=20"))
+        try Self.parseGreen(await get("/actions/workflows/ci.yml/runs?branch=main&head_sha=\(sha)&per_page=20"), sha: sha)
     }
 
     public func oldestOpenDependabotPR() async throws -> Date? {
@@ -232,12 +232,22 @@ public struct GitHubUpdateSource: UpdateSource {
         return try decoder.decode(Commit.self, from: data).sha
     }
 
-    static func parseGreen(_ data: Data) throws -> Bool {
+    /// Only main's own runs of this commit count: a push, or the dispatch the automerge job starts. A pull request
+    /// run is never main's, even from a fork whose branch is called main.
+    static func parseGreen(_ data: Data, sha: String) throws -> Bool {
         struct Runs: Decodable {
-            struct Run: Decodable { let conclusion: String?; let created_at: Date }
+            struct Run: Decodable {
+                let conclusion: String?
+                let created_at: Date
+                let event: String
+                let head_branch: String?
+                let head_sha: String
+            }
             let workflow_runs: [Run]
         }
-        let newest = try decoder.decode(Runs.self, from: data).workflow_runs.max { $0.created_at < $1.created_at }
+        let newest = try decoder.decode(Runs.self, from: data).workflow_runs
+            .filter { ["push", "workflow_dispatch"].contains($0.event) && $0.head_branch == "main" && $0.head_sha == sha }
+            .max { $0.created_at < $1.created_at }
         return newest?.conclusion == "success"
     }
 

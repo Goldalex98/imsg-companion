@@ -87,6 +87,13 @@ public final class ChatQueries: @unchecked Sendable {
 
     deinit { if let db { sqlite3_close(db) } }
 
+    /// Changes whenever another connection commits; only comparable on this connection.
+    public func dataVersion() throws(ChatQueryError) -> Int64 {
+        var version: Int64 = 0
+        try each("PRAGMA data_version") { version = sqlite3_column_int64($0, 0) }
+        return version
+    }
+
     public func maxRowID() throws(ChatQueryError) -> Int64 {
         var value: Int64 = 0
         try each("SELECT COALESCE(MAX(ROWID), 0) FROM message") { value = sqlite3_column_int64($0, 0) }

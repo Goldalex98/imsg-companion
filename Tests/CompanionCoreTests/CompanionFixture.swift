@@ -1,9 +1,15 @@
+import AppKit
 import Foundation
 import SQLite3
 import XCTest
 
 /// A synthetic `chat.db` with the columns the agent and IMsgCore read. No real data, ever.
 final class CompanionFixture {
+    /// A typedstream `attributedBody`, as Messages writes it.
+    static func archived(_ text: String) -> Data {
+        NSArchiver.archivedData(withRootObject: NSAttributedString(string: text))
+    }
+
     let url: URL
     private var db: OpaquePointer?
     private let sendColumns: Bool

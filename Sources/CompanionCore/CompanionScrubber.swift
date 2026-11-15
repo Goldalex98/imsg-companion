@@ -19,16 +19,17 @@ public enum CompanionScrubber {
         ssn.stringByReplacingMatches(in: text, range: NSRange(text.startIndex..., in: text), withTemplate: "[SSN removed]")
     }
 
-    /// A short-code sender (all digits, 3–6 long) or a verification-code message.
-    public static func isSkipped(senderHandle: String?, text: String?) -> Bool {
+    /// A short-code sender (all digits, 3–6 long), or a verification-code message in a thread Alex has never written
+    /// in (agent design §5.2, Alex 2026-11-14).
+    public static func isSkipped(senderHandle: String?, text: String?, threadHasFromMe: Bool) -> Bool {
         if let handle = senderHandle, (3...6).contains(handle.count), handle.allSatisfy(\.isASCIIDigit) { return true }
-        guard let text else { return false }
+        guard let text, !threadHasFromMe else { return false }
         return verification.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)) != nil
     }
 
-    public static func apply(to message: CompanionMessage) -> CompanionMessage {
+    public static func apply(to message: CompanionMessage, threadHasFromMe: Bool) -> CompanionMessage {
         var result = message
-        if isSkipped(senderHandle: message.senderHandle, text: message.text) {
+        if isSkipped(senderHandle: message.senderHandle, text: message.text, threadHasFromMe: threadHasFromMe) {
             result.kind = .skipped
             result.text = nil
             return result

@@ -23,7 +23,7 @@ final class CommandsTests: XCTestCase {
         XCTAssertEqual(Command.parse(["pause"]), .pause)
         XCTAssertEqual(Command.parse(["resume"]), .resume)
         XCTAssertEqual(Command.parse(["status"]), .status)
-        XCTAssertNil(Command.parse(["update"]), "arrives with the updater (plan Task 11)")
+        XCTAssertEqual(Command.parse(["update"]), .update)
         XCTAssertEqual(Command.parse(["prompt-contacts"]), .promptContacts)
         XCTAssertEqual(Command.parse(["preflight", "17"]), .preflight(chatRowID: 17))
         XCTAssertEqual(Command.parse(["setup", "https://uplink-test.invalid"]),
@@ -123,6 +123,22 @@ final class CommandsTests: XCTestCase {
         XCTAssertEqual(StatusSnapshot.lastError(reader: .init(state: .idle), sender: .init(state: .stopped("token rejected"))),
                        "token rejected")
         XCTAssertNil(StatusSnapshot.lastError(reader: .init(state: .idle), sender: .init(state: .waiting)))
+    }
+
+    func test_statusCarriesTheUpdaterResults() {
+        var update = UpdateState()
+        let at = Date(timeIntervalSince1970: 1_794_000_000)
+        update.lastResult = .init(result: .rolledBack, version: "bbbbbbbbbbbb", at: at)
+        update.ciRedSince = at
+        update.bumpPendingSince = at
+        let status = StatusSnapshot.make(config: config, agentVersion: "x", reader: .init(state: .idle),
+                                         sender: .init(state: .off),
+                                         permissions: .init(fullDiskAccess: .granted, automationMessages: .unknown,
+                                                            contacts: .unknown),
+                                         remotePaused: false, watcherRestarts: 0, forkRunning: false, update: update)
+        XCTAssertEqual(status.lastUpdate, update.lastResult)
+        XCTAssertEqual(status.ciRedSince, at)
+        XCTAssertEqual(status.bumpPendingSince, at)
     }
 }
 

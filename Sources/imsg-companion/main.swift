@@ -85,7 +85,7 @@ func runAgent() async -> Never {
         StatusSnapshot.make(config: CompanionConfig.load(from: configURL), agentVersion: agentVersion,
                             reader: latest.reader, sender: latest.sender, permissions: permissions(names, lastScript),
                             remotePaused: pause.remotePaused, watcherRestarts: await relay.restarts,
-                            forkRunning: guardian.forkRunning)
+                            forkRunning: guardian.forkRunning, update: UpdateState.load(from: updaterPaths.state))
     }
     let reporter = StatusReporter(configURL: configURL, tokens: tokens,
                                   makeUplink: { MarkingStatusUplink(client: UplinkClient(baseURL: $0, token: $1),
@@ -128,6 +128,29 @@ func runAgent() async -> Never {
     await sender.value
     terminate.cancel()
     exit(0)
+}
+
+let agentLabel = "io.github.goldalex98.imsg-companion"
+let updaterPaths = UpdaterPaths(
+    support: support,
+    app: FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications/ImsgCompanion.app"),
+    agentPlist: FileManager.default.homeDirectoryForCurrentUser
+        .appendingPathComponent("Library/LaunchAgents/\(agentLabel).plist"))
+
+func runUpdate() async {
+    let ledger = CompanionSendLedger(folder: support.appendingPathComponent("companion-sends"))
+    let health = HealthMarkStore(folder: support)
+    let updater = Updater(
+        paths: updaterPaths, label: agentLabel, uid: getuid(), runner: ProcessRunner(), github: GitHubUpdateSource(),
+        // The running agent posts its status at least every 15 minutes, so a recent 2xx means HomeChat is up.
+        homechatReachable: { (health.read()?.homechatOKAt).map { Date().timeIntervalSince($0) < 1800 } ?? false },
+        sendInProgress: { !ledger.inProgress().isEmpty },
+        installedVersion: {
+            let info = NSDictionary(contentsOf: updaterPaths.app.appendingPathComponent("Contents/Info.plist"))
+            return info?["ImsgCompanionGitSHA"] as? String
+        },
+        health: { health.read() })
+    printJSON(await updater.runOnce())
 }
 
 func printJSON<T: Encodable>(_ value: T) {
@@ -176,7 +199,8 @@ case .status:
     let status = StatusSnapshot.make(config: config, agentVersion: agentVersion, reader: CompanionStatus(state: .idle),
                                      sender: CompanionSendStatus(state: config.sendsEnabled ? .waiting : .off),
                                      permissions: permissions(names, LastScriptResult()), remotePaused: false,
-                                     watcherRestarts: 0, forkRunning: RunningForkDetector().isForkRunning())
+                                     watcherRestarts: 0, forkRunning: RunningForkDetector().isForkRunning(),
+                                     update: UpdateState.load(from: updaterPaths.state))
     printJSON(status)
     if let mark = HealthMarkStore(folder: support).read() { printJSON(mark) }
     if let result = PreflightFiles(folder: support).result() { printJSON(result) }
@@ -192,6 +216,9 @@ case .sendsOn, .sendsOff:
         fail("couldn't save the config")
     }
     print(command == .sendsOn ? "sends on" : "sends off")
+
+case .update:
+    await runUpdate()
 
 case .preflight(let chatRowID):
     do { try PreflightFiles(folder: support).request(chatRowID: chatRowID) } catch { fail("couldn't write the request") }

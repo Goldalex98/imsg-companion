@@ -31,3 +31,23 @@ public enum Permissions {
         }
     }
 }
+
+/// Remembers the last script result, so the status can say whether Automation → Messages is granted.
+public final class LastScriptResult: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored: ScriptResult?
+    public init() {}
+    public var value: ScriptResult? { lock.withLock { stored } }
+    func set(_ result: ScriptResult) { lock.withLock { stored = result } }
+}
+
+public struct ObservedRunner: CompanionScriptRunning {
+    private let base: any CompanionScriptRunning
+    private let last: LastScriptResult
+    public init(_ base: any CompanionScriptRunning, last: LastScriptResult) { self.base = base; self.last = last }
+    public func run(source: String, arguments: [String], timeout: TimeInterval) async -> ScriptRunOutput {
+        let output = await base.run(source: source, arguments: arguments, timeout: timeout)
+        last.set(CompanionSendScript.result(of: output))
+        return output
+    }
+}

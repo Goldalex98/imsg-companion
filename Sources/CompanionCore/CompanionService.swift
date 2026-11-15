@@ -82,9 +82,8 @@ public actor CompanionService {
     }
 
     public func setPaused(_ paused: Bool) async -> CompanionStatus {
-        var config = CompanionConfig.load(from: configURL)
-        config.paused = paused
-        try? config.save(to: configURL)
+        try? CompanionConfig.update(at: configURL) { $0.paused = paused }
+        let config = CompanionConfig.load(from: configURL)
         if paused { closeReader() }
         return update(paused ? .paused : .idle, config: config)
     }
@@ -311,10 +310,9 @@ public actor CompanionService {
             firstRunCursor = cursor
             return
         }
+        try? CompanionConfig.update(at: configURL) { $0.cursor = cursor }
         config = CompanionConfig.load(from: configURL)
-        config.cursor = cursor
         firstRunCursor = nil
-        try? config.save(to: configURL)
     }
 
     private func isCaughtUp(_ reader: ChatQueries, cursor: Int64) -> Bool {

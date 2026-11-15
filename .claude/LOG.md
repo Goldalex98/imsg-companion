@@ -69,3 +69,9 @@ Append only. Newest at the bottom. Public: no personal data.
   - Expiry relies on the Mac's clock.
   - From the second review: unchecked `try?` on the sticky write, an unchecked `rm` of `previous`, and `stopAgent` giving up silently after 130 s.
 - Tests: 272 pass on the MacBook. Nothing ran against real data, and nothing was sent.
+
+## 2026-11-15 11:16 ET — reinstalled with the updater build
+- Alex granted Full Disk Access and approved the reinstall. Built from `main` `16ee2f7`: Apple Development authority, `codesign --verify --strict` passes, and the requirement has no cdhash.
+- `install.sh` reloaded both jobs, and the agent is running. Its first snapshot from the new build reads `full_disk_access: granted`, sends off, `last_error` null, `fork_running` true.
+- The dependency probe folder from Task 1 was deleted, with Alex's yes.
+- HomeChat's §7 changes don't exist yet: no `homechat-bot` PR covers them. Cutover waits on that repo's session.

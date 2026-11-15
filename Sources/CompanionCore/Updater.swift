@@ -182,7 +182,9 @@ public actor Updater {
             await startAgent()
             return finish(&state, .failed, version: version, failed: nil)
         }
-        let started = now()
+        // health.json keeps whole seconds, so compare at that precision: an agent started in the same second would
+        // otherwise read back as older than this start, and a healthy build would be rolled back (Stage U).
+        let started = Date(timeIntervalSince1970: now().timeIntervalSince1970.rounded(.down))
         await startAgent()
 
         // The new agent must read chat.db and reach HomeChat within 3 minutes.

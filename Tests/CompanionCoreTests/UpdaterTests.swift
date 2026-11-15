@@ -99,6 +99,35 @@ final class UpdaterTests: XCTestCase {
         XCTAssertEqual(UpdateState.load(from: paths.state).lastResult?.result, .installed)
     }
 
+    // health.json stores whole seconds, so an agent started in the same second as the swap reads back as earlier
+    // than the updater's own start time (Stage U U8: a healthy build was rolled back).
+    func test_healthMarkInTheSameWholeSecondCounts() async throws {
+        clock = TestClock(Date(timeIntervalSince1970: 1_794_000_000.6))
+        health.version = String(head.prefix(12))
+        let store = HealthMarkStore(folder: folder.appendingPathComponent("mark"))
+        try store.start(version: String(head.prefix(12)), now: clock.now)
+        health.startedAt = try XCTUnwrap(store.read()).startedAt
+        let result = await updater().runOnce()
+        XCTAssertEqual(result.result, .installed)
+        XCTAssertEqual(runner.calls, fetchAndBuild + swap)
+    }
+
+    func test_healthMarkFromBeforeTheSwapDoesNotCount() async {
+        clock = TestClock(Date(timeIntervalSince1970: 1_794_000_000.6))
+        health.version = String(head.prefix(12))
+        health.startedAt = Date(timeIntervalSince1970: 1_793_999_999)
+        let result = await updater().runOnce()
+        XCTAssertEqual(result.result, .rolledBack)
+    }
+
+    func test_sameSecondMarkFromAnotherVersionDoesNotCount() async {
+        clock = TestClock(Date(timeIntervalSince1970: 1_794_000_000.6))
+        health.version = String(installed.prefix(12))
+        health.startedAt = Date(timeIntervalSince1970: 1_794_000_000)
+        let result = await updater().runOnce()
+        XCTAssertEqual(result.result, .rolledBack)
+    }
+
     func test_noHealthMarkRollsBackAndSkipsThatCommitAfter() async {
         let start = clock.now
         let result = await updater().runOnce()
@@ -314,9 +343,10 @@ final class FakeGitHub: UpdateSource, @unchecked Sendable {
 /// The new build's health mark appears only after the agent was started again.
 final class HealthBox: @unchecked Sendable {
     nonisolated(unsafe) var version: String?
+    nonisolated(unsafe) var startedAt: Date = .distantFuture
     func mark(after runner: FakeCommands) -> HealthMark? {
         guard let version, runner.calls.contains(where: { $0.hasPrefix("launchctl bootstrap") }) else { return nil }
-        return HealthMark(version: version, startedAt: .distantFuture, readOKAt: .distantFuture,
+        return HealthMark(version: version, startedAt: startedAt, readOKAt: .distantFuture,
                           homechatOKAt: .distantFuture)
     }
 }

@@ -86,3 +86,14 @@ Append only. Newest at the bottom. Public: no personal data.
 - Step 10: resumed and both jobs started. `read_ok_at` was set after the start, with `paused` false, `last_error` null, `fork_running` false and the cursor equal to the copied one. No uplink batch yet (`last_uplink_at` null): no new rows past the cursor in that minute.
 - No sends. Nothing wrote `chat.db`. Only counts and states were read.
 - Still to do: the fork's token stays live until it is revoked before Stage S, so HomeChat refuses every send until then.
+
+## 2026-11-15 15:05 ET — Stage U: U1, the Contacts entitlement and the health-mark precision bug
+- U1 passed: after a restart the agent started from launchd at login. After `launchctl kill SIGKILL` it came back with a new pid within 15 s. Alex confirmed the Full Disk Access listing.
+- Contacts: `prompt-contacts` answered `denied` at once, with no prompt, and the state stayed not determined. Hardened runtime refuses Contacts unless the signature carries `com.apple.security.personal-information.addressbook`, and the app had only Apple Events. PR #16 adds it. A test pins the pair, `build-app.sh` checks each key is `true`, and `ForbiddenAPITests` bans the Contacts write types. The design and plan record it.
+- U8, first live run, kickstarted under launchd for `f1281f0`:
+  - It built, signed and swapped in the app with no Keychain prompt.
+  - The new agent kept Full Disk Access and wrote a complete health mark.
+  - The updater still rolled back after 180 s and condemned the commit. `health.json` is encoded `.iso8601`, whole seconds, so an agent started in the same second as the swap reads back as earlier than the updater's sub-second start time. The installed path could never pass. The unit tests' fake mark used `.distantFuture`, which hid it.
+  - Fix: the updater floors its start time to whole seconds. A test through the real `HealthMarkStore` failed first. Further tests cover a mark from the previous second and a same-second mark of another version.
+  - The rollback itself worked live: the old app came back and the agent ran again.
+- From the fix's send-safety review, not taken: the daily send cap can count one fewer dispatch at its exact 24 h edge, because ledger times are stored in whole seconds (Minor). This is noted for the deferred ledger minors.

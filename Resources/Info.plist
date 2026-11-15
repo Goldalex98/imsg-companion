@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleIdentifier</key>
+	<string>io.github.goldalex98.imsg-companion</string>
+	<key>CFBundleExecutable</key>
+	<string>imsg-companion</string>
+	<key>CFBundleName</key>
+	<string>ImsgCompanion</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleInfoDictionaryVersion</key>
+	<string>6.0</string>
+	<key>CFBundleShortVersionString</key>
+	<string>0.1.0</string>
+	<key>CFBundleVersion</key>
+	<string>0</string>
+	<key>ImsgCompanionGitSHA</key>
+	<string>dev</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSContactsUsageDescription</key>
+	<string>ImsgCompanion shows contact names, instead of bare numbers, on the texts it forwards to HomeChat.</string>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>ImsgCompanion asks Messages to send a reply only after you approve its exact text in HomeChat.</string>
+</dict>
+</plist>

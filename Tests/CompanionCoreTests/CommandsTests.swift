@@ -101,6 +101,20 @@ final class CommandsTests: XCTestCase {
         XCTAssertEqual(result, PreflightFiles.Result(chatRowID: 7, result: "refused", code: 9004, at: now))
     }
 
+    func test_agentStatusFileRoundTrips() throws {
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let file = AgentStatusFile(folder: folder)
+        XCTAssertNil(file.read())
+        let status = StatusSnapshot.make(config: config, agentVersion: "abc1234", reader: .init(state: .notConfigured),
+                                         sender: .init(state: .off),
+                                         permissions: .init(fullDiskAccess: .denied, automationMessages: .unknown,
+                                                            contacts: .unknown),
+                                         remotePaused: false, watcherRestarts: 3, forkRunning: false)
+        let at = Date(timeIntervalSince1970: 1_794_000_000)
+        file.write(status, at: at)
+        XCTAssertEqual(file.read(), AgentStatusFile.Entry(at: at, status: status))
+    }
+
     func test_lastErrorComesFromFixedStates() {
         XCTAssertEqual(StatusSnapshot.lastError(reader: .init(state: .stopped("database_replaced")),
                                                 sender: .init(state: .waiting)), "database_replaced")

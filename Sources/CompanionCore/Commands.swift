@@ -114,3 +114,24 @@ public enum StatusSnapshot {
                     forkRunning: forkRunning)
     }
 }
+
+/// `<support>/agent-status.json`: the running agent's own snapshot, so `status` from a terminal shows the agent's
+/// permissions (a terminal's grants are its own, not the agent's).
+public struct AgentStatusFile: Sendable {
+    public struct Entry: Codable, Equatable, Sendable {
+        public let at: Date
+        public let status: AgentStatus
+    }
+
+    public let url: URL
+
+    public init(folder: URL) { url = folder.appendingPathComponent("agent-status.json") }
+
+    public func write(_ status: AgentStatus, at: Date) {
+        try? CompanionJSON.encoder.encode(Entry(at: at, status: status)).write(to: url, options: .atomic)
+    }
+
+    public func read() -> Entry? {
+        (try? Data(contentsOf: url)).flatMap { try? CompanionJSON.decoder.decode(Entry.self, from: $0) }
+    }
+}

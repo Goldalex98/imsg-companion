@@ -1,8 +1,8 @@
 # Status: imsg-companion
 
-**Updated:** 2026-11-15 11:00 ET
-**At:** Plan Tasks 1–13 are built and merged. The agent is ready for cutover and waits on HomeChat's §7 deploy. It is installed on the MacBook and idle: no token, sends off, Full Disk Access not granted. Nothing has read real message content and nothing has been sent.
-**Next:** Cutover (`docs/runbooks/cutover.md`) after HomeChat deploys. Reinstall the agent from `main` first (cutover step 0a).
+**Updated:** 2026-11-15 11:16 ET
+**At:** Plan Tasks 1–13 are built, reviewed and merged. The agent is installed on the MacBook from `main` (`16ee2f7`, Apple Development signed). Its own snapshot reads Full Disk Access granted, sends off, no token. While the fork app runs, uplink stays blocked. Nothing has read real message content and nothing has been sent.
+**Next:** HomeChat's §7 half, in `homechat-bot`'s own session: no PR exists for it yet. Then cutover (`docs/runbooks/cutover.md`; step 0a and the Full Disk Access grant are done).
 **Phase:** Built; next are cutover and acceptance with Alex (`docs/runbooks/stage-u.md`, `stage-s.md`), after HomeChat's §7 deploy.
 **Milestones:** Dependency proof ✓ · Scaffold ✓ · Safety core ✓ · Reading ✓ · Sending ✓ (built, never run against Messages) · Status and control ✓ · Packaging ✓ · Updates ✓ (built; no nightly run yet) · Runbooks ✓ · Cutover · Acceptance
 
@@ -11,7 +11,7 @@ _Rewrite in place on every state change. Why things are the way they are goes in
 ## RUNNING NOW
 - CI (`ci.yml`) on PRs and pushes to `main`: tests, the ad hoc app build and the Dependabot diff check. The `automerge` job runs only on Dependabot's PRs.
 - Dependabot (swift, daily, 3-day cooldown). No bump PR yet: the automerge live check (Task 12 Step 4) is pending.
-- `ImsgCompanion.app` in `~/Applications` on the MacBook, under launchd (`io.github.goldalex98.imsg-companion`, parent pid 1), installed 2026-11-15 10:11 ET from `7a1e4ee`. No token, sends off, Full Disk Access denied: every uplink path stops at "not set up". The updater job is loaded too, but the installed build predates the `update` command, so its 03:30 run exits with the usage message until the agent is reinstalled.
+- `ImsgCompanion.app` in `~/Applications` on the MacBook, under launchd (`io.github.goldalex98.imsg-companion`), installed 2026-11-15 11:14 ET from `16ee2f7`. Full Disk Access granted (the agent's own readout). No token, sends off, uplink blocked while the fork app runs. The 03:30 updater job is loaded; no nightly run has happened yet.
 
 ## QUEUED
 - Cutover (`docs/runbooks/cutover.md`), then Stage U and Stage S.
@@ -21,11 +21,10 @@ _Rewrite in place on every state change. Why things are the way they are goes in
 - None.
 
 ## AWAITING Alex
-- When convenient: System Settings → Privacy & Security → Full Disk Access → add `~/Applications/ImsgCompanion.app`. Not needed until cutover; the agent stays idle without a token either way.
-- Whether to reinstall the agent now so the nightly updater runs (it would install main's green head each night from then on).
 - None for building. Cutover and acceptance need him later (grants, test contacts, his typed yes per real send).
 
 ## DONE
+- 2026-11-15 11:14 ET: reinstalled from `main` `16ee2f7` (Alex approved); Alex granted Full Disk Access; the agent's snapshot confirms `granted`. PR #13 merged (`16ee2f7`), `main` CI green.
 - 2026-11-15 11:00 ET: PR #13: the final review's fix pass (no Critical; 4 Important fixed, then 5 more from its send-safety review). The updater never leaves the agent without an app or stopped. HomeChat's pause still arrives while sends are stopped. `database_replaced` stays stopped until `reset-cursor` (272 tests).
 - 2026-11-15 10:50 ET: PR #12 merged (`f076928`): runbooks for cutover, Stage U and Stage S.
 - 2026-11-15 10:43 ET: PR #11 merged (`f269194`): Dependabot, plus an automerge job gated on Dependabot being both the PR author and the run's actor. Package.swift may change only on the imsg pin line.

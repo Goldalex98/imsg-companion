@@ -8,6 +8,8 @@ public struct UpdaterPaths: Sendable {
     public let src: URL
     public let app: URL
     public let previous: URL
+    /// The new app, copied next to the installed one so the swap is two renames on one volume.
+    public let staging: URL
     public let build: URL
     public let state: URL
     public let agentPlist: URL
@@ -16,6 +18,7 @@ public struct UpdaterPaths: Sendable {
         self.support = support; self.app = app; self.agentPlist = agentPlist
         src = support.appendingPathComponent("src", isDirectory: true)
         previous = support.appendingPathComponent("previous/ImsgCompanion.app", isDirectory: true)
+        staging = app.deletingLastPathComponent().appendingPathComponent(".ImsgCompanion-staging.app", isDirectory: true)
         build = support.appendingPathComponent("build", isDirectory: true)
         state = support.appendingPathComponent("update-state.json")
     }
@@ -82,6 +85,7 @@ public actor Updater {
     private let github: any UpdateSource
     private let homechatReachable: @Sendable () async -> Bool
     private let sendInProgress: @Sendable () -> Bool
+    private let isPaused: @Sendable () -> Bool
     private let installedVersion: @Sendable () -> String?
     private let health: @Sendable () -> HealthMark?
     private let now: @Sendable () -> Date
@@ -89,11 +93,12 @@ public actor Updater {
 
     public init(paths: UpdaterPaths, label: String, uid: UInt32, runner: any CommandRunning, github: any UpdateSource,
                 homechatReachable: @escaping @Sendable () async -> Bool, sendInProgress: @escaping @Sendable () -> Bool,
+                isPaused: @escaping @Sendable () -> Bool = { false },
                 installedVersion: @escaping @Sendable () -> String?, health: @escaping @Sendable () -> HealthMark?,
                 now: @escaping @Sendable () -> Date = Date.init,
                 sleep: @escaping @Sendable (TimeInterval) async -> Void = { try? await Task.sleep(for: .seconds($0)) }) {
         self.paths = paths; self.label = label; self.uid = uid; self.runner = runner; self.github = github
-        self.homechatReachable = homechatReachable; self.sendInProgress = sendInProgress
+        self.homechatReachable = homechatReachable; self.sendInProgress = sendInProgress; self.isPaused = isPaused
         self.installedVersion = installedVersion; self.health = health; self.now = now; self.sleep = sleep
     }
 
@@ -129,6 +134,8 @@ public actor Updater {
         }
         state.ciRedSince = nil
         guard await homechatReachable() else { return .none }
+        // A paused agent reads nothing, so it could never pass the health check: try again another night.
+        guard !isPaused() else { return .none }
 
         // Build the commit that was checked green, in a clone that's only ours.
         if !files.fileExists(atPath: paths.src.path) {
@@ -151,14 +158,27 @@ public actor Updater {
             waited += 10
         }
 
+        // Stage the new app beside the old one first, so the agent stops only for two renames. A failure from here
+        // on is the Mac's, not the commit's: nothing is added to `failedCommits` until the new app has run.
+        _ = await runner.run("/bin/rm", ["-rf", paths.staging.path])
+        guard await run("/usr/bin/ditto", [paths.build.appendingPathComponent("ImsgCompanion.app").path,
+                                           paths.staging.path])
+        else { return finish(&state, .failed, version: version, failed: nil) }
+
         await stopAgent()
         _ = await runner.run("/bin/rm", ["-rf", paths.previous.path])
         _ = await runner.run("/bin/mkdir", ["-p", paths.previous.deletingLastPathComponent().path])
-        _ = await runner.run("/bin/mv", [paths.app.path, paths.previous.path])
-        _ = await runner.run("/usr/bin/ditto", [paths.build.appendingPathComponent("ImsgCompanion.app").path,
-                                                paths.app.path])
+        guard await run("/bin/mv", [paths.app.path, paths.previous.path]) else {
+            await startAgent()
+            return finish(&state, .failed, version: version, failed: nil)
+        }
+        guard await run("/bin/mv", [paths.staging.path, paths.app.path]) else {
+            _ = await runner.run("/bin/mv", [paths.previous.path, paths.app.path])
+            await startAgent()
+            return finish(&state, .failed, version: version, failed: nil)
+        }
         let started = now()
-        _ = await runner.run("/bin/launchctl", ["bootstrap", "gui/\(uid)", paths.agentPlist.path])
+        await startAgent()
 
         // The new agent must read chat.db and reach HomeChat within 3 minutes.
         var elapsed: TimeInterval = 0
@@ -170,11 +190,27 @@ public actor Updater {
             await sleep(5)
             elapsed += 5
         }
+        // Roll back without ever deleting the only app: the failed one moves aside, and is deleted once the old
+        // one is back. If the old one can't come back, the new one stays rather than leaving none.
         await stopAgent()
-        _ = await runner.run("/bin/rm", ["-rf", paths.app.path])
-        _ = await runner.run("/bin/mv", [paths.previous.path, paths.app.path])
-        _ = await runner.run("/bin/launchctl", ["bootstrap", "gui/\(uid)", paths.agentPlist.path])
+        _ = await runner.run("/bin/rm", ["-rf", paths.staging.path])
+        _ = await runner.run("/bin/mv", [paths.app.path, paths.staging.path])
+        if await run("/bin/mv", [paths.previous.path, paths.app.path]) {
+            await startAgent()
+            _ = await runner.run("/bin/rm", ["-rf", paths.staging.path])
+        } else {
+            _ = await runner.run("/bin/mv", [paths.staging.path, paths.app.path])
+            await startAgent()
+        }
         return finish(&state, .rolledBack, version: version, failed: head)
+    }
+
+    private func run(_ executable: String, _ arguments: [String]) async -> Bool {
+        await runner.run(executable, arguments).succeeded
+    }
+
+    private func startAgent() async {
+        _ = await runner.run("/bin/launchctl", ["bootstrap", "gui/\(uid)", paths.agentPlist.path])
     }
 
     /// bootout, not a kill: KeepAlive would restart the old binary mid-swap. The agent finishes a send in flight.

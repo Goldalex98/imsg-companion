@@ -11,6 +11,9 @@ public struct CompanionConfig: Codable, Sendable, Equatable {
     public var sendsEnabled: Bool
     /// Settings that were constants in the fork, so a change is a config edit, not a rebuild.
     public var tunables: Tunables
+    /// Set when the database's ROWIDs fell below the cursor (a restore or replacement). Reading stays stopped until
+    /// `reset-cursor` clears it, even if new rows later climb past the old cursor.
+    public var databaseReplaced: Bool = false
 
     public static let supportFolder = "imsg-companion"
 
@@ -47,7 +50,8 @@ public struct CompanionConfig: Codable, Sendable, Equatable {
     }
 
     enum CodingKeys: String, CodingKey {
-        case uplinkURL = "uplink_url", deviceID = "device_id", paused, cursor, sendsEnabled = "sends_enabled", tunables
+        case uplinkURL = "uplink_url", deviceID = "device_id", paused, cursor, sendsEnabled = "sends_enabled", tunables,
+             databaseReplaced = "database_replaced"
     }
 
     public init(from decoder: Decoder) throws {
@@ -58,6 +62,7 @@ public struct CompanionConfig: Codable, Sendable, Equatable {
         cursor = try c.decodeIfPresent(Int64.self, forKey: .cursor)
         sendsEnabled = try c.decodeIfPresent(Bool.self, forKey: .sendsEnabled) ?? false
         tunables = try c.decodeIfPresent(Tunables.self, forKey: .tunables) ?? Tunables()
+        databaseReplaced = try c.decodeIfPresent(Bool.self, forKey: .databaseReplaced) ?? false
     }
 
     public static func newDeviceID() -> String {

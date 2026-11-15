@@ -108,15 +108,17 @@ public actor CompanionService {
             return update(.offline(retryIn: retryAt.timeIntervalSince(now())), config: config)
         }
 
+        if config.databaseReplaced { closeReader(); return update(.stopped(Self.resetStatus), config: config) }
         dropReaderIfFileReplaced()
         let reader: ChatQueries
         do throws(ChatQueryError) {
             reader = try openReader()
             // A cursor past the highest ROWID ever handed out means the database was reset (deleting the newest
-            // messages doesn't count: see highWaterRowID). Not sticky: it is re-checked each tick, so clearing the
-            // cursor lets the next tick start again. The cursor itself is never lowered here.
+            // messages doesn't count: see highWaterRowID). Sticky, in the config: new rows climbing past the old
+            // cursor must not resume reading over the gap. `reset-cursor` clears it. The cursor is never lowered here.
             if let cursor = config.cursor, try reader.highWaterRowID() < cursor {
                 caughtUp = false
+                try? CompanionConfig.update(at: configURL) { $0.databaseReplaced = true }
                 return update(.stopped(Self.resetStatus), config: config)
             }
             let version = try reader.dataVersion()

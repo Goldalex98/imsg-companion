@@ -28,6 +28,7 @@ public struct CompanionSendStatus: Sendable, Equatable {
 
 public actor CompanionSendExecutor {
     public static let fetchWait = 25
+    static let controlRetry: TimeInterval = 60
     public static let scriptTimeout: TimeInterval = 35
     /// Read-back after the script returns: one poll now, then one a second for 20 s (Alex, 2026-11-11).
     public static let readbackPolls = 20
@@ -55,7 +56,8 @@ public actor CompanionSendExecutor {
     private var backoff: TimeInterval = 0
     private var retryAt: Date?
     /// Set by a 401, a 409 on a result or another rejection; cleared when the URL or token changes.
-    private var stop: (key: String, reason: String)?
+    private var stop: (key: String, reason: String, tokenRejected: Bool)?
+    private var controlRetryAt: Date?
     private var inFlight = false
     private var current = CompanionSendStatus(state: .off)
 
@@ -85,14 +87,20 @@ public actor CompanionSendExecutor {
         guard ledger.lockExclusively() else { return status(.stopped(Self.anotherCopy)) }
         let key = SHA256.hash(data: Data("\(url.absoluteString)\n\(token)".utf8)).map { String(format: "%02x", $0) }.joined()
         if let stop {
-            if stop.key == key { return status(.stopped(stop.reason)) }
+            if stop.key == key {
+                if !stop.tokenRejected { await pollControl(makeUplink(url, token)) }
+                return status(.stopped(stop.reason))
+            }
             self.stop = nil
         }
         if let retryAt, retryAt > now() { return status(.offline(retryIn: retryAt.timeIntervalSince(now()))) }
         let uplink = makeUplink(url, token)
 
         if await inactive() == nil {
-            if let blocked = recover() { return status(.stopped(blocked)) }
+            if let blocked = recover() {
+                await pollControl(uplink)
+                return status(.stopped(blocked))
+            }
             if let halted = await reportUnreported(uplink, key: key) { return status(halted) }
         }
 
@@ -337,7 +345,7 @@ public actor CompanionSendExecutor {
             backoff = backoff == 0 ? tunables.backoffInitialSeconds : min(backoff * 2, tunables.backoffMaxSeconds)
             retryAt = now() + backoff
             return .offline(retryIn: backoff)
-        case .unauthorized: return halt("token rejected", key: key)
+        case .unauthorized: return halt("token rejected", key: key, tokenRejected: true)
         case .conflict: return halt("HomeChat holds a different result for a send", key: key)
         case .notHTTPS: return halt("the HomeChat address must be https", key: key)
         case .unknownSend: return halt("HomeChat doesn't know a send", key: key)
@@ -345,9 +353,22 @@ public actor CompanionSendExecutor {
         }
     }
 
-    private func halt(_ reason: String, key: String) -> CompanionSendStatus.State {
-        stop = (key, reason)
+    private func halt(_ reason: String, key: String, tokenRejected: Bool = false) -> CompanionSendStatus.State {
+        stop = (key, reason, tokenRejected)
         return .stopped(reason)
+    }
+
+    /// While sends are stopped, keep fetching for HomeChat's control alone, so a pause from WhatsApp still arrives
+    /// (design §5.5). The page's sends are ignored and nothing is recorded. A failed fetch just waits for the next
+    /// cycle, after `controlRetry`.
+    private func pollControl(_ uplink: any CompanionSendUplinking) async {
+        if let controlRetryAt, controlRetryAt > now() { return }
+        do throws(SendsError) {
+            onControl(try await uplink.fetchSends(wait: Self.fetchWait).control)
+            controlRetryAt = nil
+        } catch {
+            controlRetryAt = now() + Self.controlRetry
+        }
     }
 
     private func clearBackoff() { backoff = 0; retryAt = nil }

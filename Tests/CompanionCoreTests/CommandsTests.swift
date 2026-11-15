@@ -24,6 +24,7 @@ final class CommandsTests: XCTestCase {
         XCTAssertEqual(Command.parse(["resume"]), .resume)
         XCTAssertEqual(Command.parse(["status"]), .status)
         XCTAssertEqual(Command.parse(["update"]), .update)
+        XCTAssertEqual(Command.parse(["reset-cursor"]), .resetCursor)
         XCTAssertEqual(Command.parse(["prompt-contacts"]), .promptContacts)
         XCTAssertEqual(Command.parse(["preflight", "17"]), .preflight(chatRowID: 17))
         XCTAssertEqual(Command.parse(["setup", "https://uplink-test.invalid"]),

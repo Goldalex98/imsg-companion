@@ -145,6 +145,8 @@ func runUpdate() async {
         // The running agent posts its status at least every 15 minutes, so a recent 2xx means HomeChat is up.
         homechatReachable: { (health.read()?.homechatOKAt).map { Date().timeIntervalSince($0) < 1800 } ?? false },
         sendInProgress: { !ledger.inProgress().isEmpty },
+        // The local flag, or the running agent's last snapshot (which includes HomeChat's pause).
+        isPaused: { CompanionConfig.load(from: configURL).paused || AgentStatusFile(folder: support).read()?.status.paused == true },
         installedVersion: {
             let info = NSDictionary(contentsOf: updaterPaths.app.appendingPathComponent("Contents/Info.plist"))
             return info?["ImsgCompanionGitSHA"] as? String
@@ -219,6 +221,10 @@ case .sendsOn, .sendsOff:
 
 case .update:
     await runUpdate()
+
+case .resetCursor:
+    do { try ConfigEdits.resetCursor(configURL: configURL) } catch { fail("couldn't save the config") }
+    print("cursor reset: the next read starts from the first-run window")
 
 case .preflight(let chatRowID):
     do { try PreflightFiles(folder: support).request(chatRowID: chatRowID) } catch { fail("couldn't write the request") }

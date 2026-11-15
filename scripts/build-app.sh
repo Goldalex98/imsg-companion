@@ -58,6 +58,8 @@ if [ "$identity" != "-" ]; then
   if grep -q "cdhash" <<<"$requirement"; then echo "designated requirement pins a cdhash" >&2; exit 1; fi
 fi
 entitlements="$(codesign -d --entitlements :- "$app" 2>/dev/null)"
-grep -q "com.apple.security.automation.apple-events" <<<"$entitlements" || { echo "entitlement missing" >&2; exit 1; }
+for key in com.apple.security.automation.apple-events com.apple.security.personal-information.addressbook; do
+  grep -qF "<key>$key</key><true/>" <<<"$entitlements" || { echo "entitlement missing: $key" >&2; exit 1; }
+done
 
 echo "built $app ($( [ "$identity" = "-" ] && echo "ad hoc" || echo "signed"))"

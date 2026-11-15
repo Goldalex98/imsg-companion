@@ -25,7 +25,7 @@ Checks:
 5. The scrubber runs on the Mac before anything is uplinked: SSN-shaped text becomes `[SSN removed]`, text over 4,000 characters is cut, short-code senders are skipped, and the verification-code skip applies only in threads with no from-me row.
 6. Uplink and status: outbound HTTPS only, redirects refused, no listening port; the bearer token only in the Keychain; the HomeChat URL only in local config; status and logs carry no message text, handles or names.
 7. Public-repo hygiene: no names, phone numbers, emails, chat GUIDs, message text, HomeChat host, tokens or private paths in added code, tests, fixtures, docs or commit messages; fixtures are synthetic. Grep added lines for phone, email, token and URL shapes; name file and line, never print a value.
-8. Signing and updates: the bundle ID `io.github.goldalex98.imsg-companion`; hardened runtime; only the Apple Events entitlement; the updater builds only a commit whose CI run is green, verifies the signature before swapping, keeps `previous/`, and rolls back on a failed health check.
+8. Signing and updates: the bundle ID `io.github.goldalex98.imsg-companion`; hardened runtime; only the Apple Events and Contacts (`com.apple.security.personal-information.addressbook`) entitlements, and nothing writes Contacts; the updater builds only a commit whose CI run is green, verifies the signature before swapping, keeps `previous/`, and rolls back on a failed health check.
 9. Tests use synthetic databases, fakes and mocked transports; none sends a real message, opens the real Messages database or resets permissions.
 
 Method: read the diff first, then only the files it touches. Run read-only git commands only. Never

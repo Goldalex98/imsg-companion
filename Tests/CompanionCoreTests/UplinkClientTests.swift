@@ -176,6 +176,40 @@ extension UplinkClientTests {
         XCTAssertEqual(page.control, SendsPage.Control(paused: true))
     }
 
+    private func statusSample() -> AgentStatus {
+        AgentStatus(deviceID: "mac-0000aaaa", agentVersion: "abc1234",
+                    permissions: .init(fullDiskAccess: .granted, automationMessages: .unknown, contacts: .unknown),
+                    paused: false, sendsEnabled: false, lastUplinkAt: nil, lastError: nil, lastUpdate: .none,
+                    bumpPendingSince: nil, ciRedSince: nil, watcherRestarts: 0, forkRunning: false)
+    }
+
+    func test_postStatusRequestShapeAnd204() async throws {
+        UplinkStub.respond(status: 204, body: "")
+        try await client().postStatus(statusSample())
+        let request = try XCTUnwrap(UplinkStub.requests.first)
+        XCTAssertEqual(request.httpMethod, "POST")
+        XCTAssertEqual(request.url?.path, "/imsg/status")
+        XCTAssertEqual(request.value(forHTTPHeaderField: "Authorization"), "Bearer test-token")
+    }
+
+    func test_postStatusErrors() async {
+        for (status, expected) in [(401, UplinkError.unauthorized), (503, .retryable(503)), (422, .rejected(422))] {
+            UplinkStub.respond(status: status, body: "{}")
+            do throws(UplinkError) {
+                try await client().postStatus(statusSample())
+                XCTFail("\(status) should throw")
+            } catch {
+                XCTAssertEqual(error, expected)
+            }
+        }
+        do throws(UplinkError) {
+            try await client(URL(string: "http://uplink-test.invalid")).postStatus(statusSample())
+            XCTFail("http should throw")
+        } catch {
+            XCTAssertEqual(error, .notHTTPS)
+        }
+    }
+
     func test_fetchSendsRequestShape() async throws {
         UplinkStub.respond(status: 200, body: #"{"sends": []}"#)
         _ = try await client().fetchSends(wait: 25)

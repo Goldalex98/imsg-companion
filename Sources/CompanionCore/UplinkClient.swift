@@ -46,6 +46,38 @@ public struct UplinkClient: Sendable {
     }
 }
 
+// MARK: - Status (POST /imsg/status)
+
+public protocol StatusUplinking: Sendable {
+    func postStatus(_ status: AgentStatus) async throws(UplinkError)
+}
+
+extension UplinkClient: StatusUplinking {
+    /// The same bearer token, HTTPS-only rule and refused redirects as the other routes; 204 is success.
+    public func postStatus(_ status: AgentStatus) async throws(UplinkError) {
+        guard baseURL.scheme?.lowercased() == "https", baseURL.host != nil else { throw .notHTTPS }
+        guard let body = try? CompanionJSON.encoder.encode(status) else { throw .badResponse }
+        var request = URLRequest(url: baseURL.appendingPathComponent("imsg/status"))
+        request.httpMethod = "POST"
+        request.httpBody = body
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        let response: URLResponse
+        do {
+            (_, response) = try await session.data(for: request)
+        } catch {
+            throw .retryable(nil)
+        }
+        guard let http = response as? HTTPURLResponse else { throw .badResponse }
+        switch http.statusCode {
+        case 200..<300: return
+        case 401: throw .unauthorized
+        case 429, 500..<600: throw .retryable(http.statusCode)
+        default: throw .rejected(http.statusCode)
+        }
+    }
+}
+
 // MARK: - Phase 3 sends (GET /imsg/sends, POST /imsg/send-results)
 
 public enum SendsError: Error, Equatable {

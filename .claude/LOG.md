@@ -75,3 +75,14 @@ Append only. Newest at the bottom. Public: no personal data.
 - `install.sh` reloaded both jobs, and the agent is running. Its first snapshot from the new build reads `full_disk_access: granted`, sends off, `last_error` null, `fork_running` true.
 - The dependency probe folder from Task 1 was deleted, with Alex's yes.
 - HomeChat's §7 changes don't exist yet: no `homechat-bot` PR covers them. Cutover waits on that repo's session.
+
+## 2026-11-15 14:24 ET — cutover
+- HomeChat's §7 half was deployed and live, with 0 unfinished sends (HomeChat's session, steps 1–2).
+- Steps 3 and 5 ran as one pipe: HomeChat's own CLI issued the device token on the server, and it went straight into `setup`'s stdin. It never appeared in a terminal, chat or log. `setup` reads the token from stdin, so the pipe works unattended. The device ID exists only once a config is written. The agent had no `companion.json` until step 4's `pause` saved one, so step 4 has to run before the token is issued.
+- Step 6, the §7 proof: started paused, `homechat_ok_at` was set one second after start, `last_error` null.
+- Step 7: Alex quit the fork app and switched off its Login Item. Both `fork_running` readouts were false.
+- Step 8: after `bootout`, the agent took about 18 s to exit (the graceful-exit window). Wait for the process to go before copying the cursor.
+- Step 9: the fork's cursor was copied. The new config had none.
+- Step 10: resumed and both jobs started. `read_ok_at` was set after the start, with `paused` false, `last_error` null, `fork_running` false and the cursor equal to the copied one. No uplink batch yet (`last_uplink_at` null): no new rows past the cursor in that minute.
+- No sends. Nothing wrote `chat.db`. Only counts and states were read.
+- Still to do: the fork's token stays live until it is revoked before Stage S, so HomeChat refuses every send until then.

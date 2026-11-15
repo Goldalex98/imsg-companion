@@ -29,3 +29,8 @@ Append only. Newest at the bottom. Public: no personal data.
 
 ## 2026-11-15 09:23 ET — Task 9
 - PR #8 merged `3926922` (PR CI green). `run` wires the reader, the unsend relay, the executor and the status reporter, all behind `ForkGuard`. SIGTERM reads as a pause for the executor, and the agent waits for the current cycle before exiting. Config writes from the agent and the commands share an `flock`. `update` waits for the updater (Task 11) instead of shipping as a placeholder. Review's Important finding: exit can take a long-poll plus a dispatch, so the launchd plist sets `ExitTimeOut` 120 (Task 10). Not run yet: the agent itself.
+
+## 2026-11-15 10:16 ET — Task 10
+- PR #9 merged `77cffcb` (PR CI green, including the new ad hoc app build). The signed build has hardened runtime, the Apple Events entitlement, and a designated requirement of bundle ID plus Apple anchor with no cdhash. `ExitTimeOut` 120 (the brief said 90; a fetch plus script plus read-back can take about 97 s).
+- Installed on the MacBook with no token and sends off. `launchctl print` shows it running with parent pid 1. The agent's own snapshot (`agent-status.json`, which `status` prints) reads `full_disk_access: denied`. A terminal's readout showed `granted`, because a terminal's grants are its own, not the agent's. That is why the snapshot file exists.
+- Install fix: `launchctl bootout` returned before the old process had exited, and bootstrap failed with error 5. `install.sh` now waits for the unload. A reinstall over the running agent stopped it in about 2 s.

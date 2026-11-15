@@ -3,7 +3,8 @@ import Foundation
 /// `imsg-companion <command>` (agent design §5.1). No command sends a message: sends come only from HomeChat,
 /// through the executor, after Alex approved the exact text.
 public enum Command: Equatable, Sendable {
-    case run, setup(url: URL), status, pause, resume, sendsOn, sendsOff, preflight(chatRowID: Int64), promptContacts
+    case run, setup(url: URL), status, pause, resume, sendsOn, sendsOff, preflight(chatRowID: Int64), promptContacts,
+         update
 
     public static func parse(_ args: [String]) -> Command? {
         switch args {
@@ -14,6 +15,7 @@ public enum Command: Equatable, Sendable {
         case ["sends", "on"]: .sendsOn
         case ["sends", "off"]: .sendsOff
         case ["prompt-contacts"]: .promptContacts
+        case ["update"]: .update
         case let a where a.count == 2 && a[0] == "setup": URL(string: a[1]).map { .setup(url: $0) }
         case let a where a.count == 2 && a[0] == "preflight":
             Int64(a[1]).flatMap { $0 > 0 ? .preflight(chatRowID: $0) : nil }
@@ -26,6 +28,7 @@ public enum Command: Equatable, Sendable {
                imsg-companion setup <https-url>     (reads the token from stdin)
                imsg-companion status | pause | resume | sends on | sends off
                imsg-companion preflight <chat-rowid>  (checks a chat without sending)
+               imsg-companion update                  (the nightly updater's run)
         """
 }
 
@@ -106,11 +109,12 @@ public enum StatusSnapshot {
 
     public static func make(config: CompanionConfig, agentVersion: String, reader: CompanionStatus,
                             sender: CompanionSendStatus, permissions: AgentStatus.Permissions, remotePaused: Bool,
-                            watcherRestarts: Int, forkRunning: Bool) -> AgentStatus {
+                            watcherRestarts: Int, forkRunning: Bool, update: UpdateState = UpdateState()) -> AgentStatus {
         AgentStatus(deviceID: config.deviceID, agentVersion: agentVersion, permissions: permissions,
                     paused: config.paused || remotePaused, sendsEnabled: config.sendsEnabled,
                     lastUplinkAt: reader.lastUplinkAt, lastError: lastError(reader: reader, sender: sender),
-                    lastUpdate: .none, bumpPendingSince: nil, ciRedSince: nil, watcherRestarts: watcherRestarts,
+                    lastUpdate: update.lastResult ?? .none, bumpPendingSince: update.bumpPendingSince,
+                    ciRedSince: update.ciRedSince, watcherRestarts: watcherRestarts,
                     forkRunning: forkRunning)
     }
 }

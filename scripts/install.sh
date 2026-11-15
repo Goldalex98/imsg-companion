@@ -13,8 +13,14 @@ agents="$HOME/Library/LaunchAgents"
 codesign --verify --strict "$source_app"
 
 for label in io.github.goldalex98.imsg-companion io.github.goldalex98.imsg-companion.updater; do
-  # bootout sends SIGTERM and waits (up to ExitTimeOut) for an in-flight send to finish.
+  # bootout sends SIGTERM; the agent finishes an in-flight send first (ExitTimeOut 120).
   launchctl bootout "$domain/$label" 2>/dev/null || true
+  # bootout can return before the process has exited; bootstrapping then fails with error 5.
+  for _ in $(seq 1 130); do
+    launchctl print "$domain/$label" >/dev/null 2>&1 || break
+    sleep 1
+  done
+  if launchctl print "$domain/$label" >/dev/null 2>&1; then echo "$label didn't stop" >&2; exit 1; fi
 done
 
 mkdir -p "$HOME/Applications" "$agents" "$HOME/Library/Logs/imsg-companion"

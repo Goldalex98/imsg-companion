@@ -50,6 +50,7 @@ public actor CompanionService {
     private let names: any CompanionNameResolving
     private let makeUplink: @Sendable (URL, String) -> any CompanionUplinking
     private let makePaging: @Sendable (String) throws -> any MessagePaging
+    private let serializer: UplinkSerializer
     /// A pause from elsewhere (HomeChat's `control.paused`, the fork-running guard); the config's flag is checked too.
     private let isPaused: @Sendable () async -> Bool
     private let now: @Sendable () -> Date
@@ -73,10 +74,11 @@ public actor CompanionService {
     public init(databasePath: String, configURL: URL, tokens: any CompanionTokenStoring,
                 names: any CompanionNameResolving, makeUplink: @escaping @Sendable (URL, String) -> any CompanionUplinking,
                 makePaging: @escaping @Sendable (String) throws -> any MessagePaging = { try IMsgCorePaging(path: $0) },
+                serializer: UplinkSerializer = UplinkSerializer(),
                 isPaused: @escaping @Sendable () async -> Bool = { false },
                 now: @escaping @Sendable () -> Date = Date.init) {
         self.databasePath = databasePath; self.configURL = configURL; self.tokens = tokens; self.names = names
-        self.makeUplink = makeUplink; self.makePaging = makePaging; self.isPaused = isPaused; self.now = now
+        self.makeUplink = makeUplink; self.makePaging = makePaging; self.serializer = serializer; self.isPaused = isPaused; self.now = now
     }
 
     public func setPaused(_ paused: Bool) async -> CompanionStatus {
@@ -167,7 +169,7 @@ public actor CompanionService {
         status.state = .uplinking
 
         do throws(UplinkError) {
-            let ack = try await makeUplink(url, token).post(batch)
+            let ack = try await serializer.post(batch, via: makeUplink(url, token))
             // Never past this batch, never back behind where it started.
             let accepted = min(max(ack.acceptedCursor, start), batch.cursor)
             advance(to: accepted, firstRun: false, config: &config)

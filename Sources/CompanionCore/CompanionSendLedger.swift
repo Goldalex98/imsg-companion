@@ -1,6 +1,6 @@
 import Foundation
 
-// iMessage companion (fork-only), phase 3. One file per send, written before anything is dispatched, so a send is
+// One file per send, written before anything is dispatched, so a send is
 // never dispatched twice and a crash mid-send is found on the next launch (send notes, Borrow 1). Records hold no
 // message text: only its length and hash (Alex, 2026-11-11). The exact text stays on HomeChat.
 

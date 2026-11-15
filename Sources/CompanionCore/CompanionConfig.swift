@@ -1,6 +1,6 @@
 import Foundation
 
-// iMessage companion (fork-only). Local, non-secret settings. The token lives in the Keychain, never here.
+// Local, non-secret settings. The token lives in the Keychain, never here.
 public struct CompanionConfig: Codable, Sendable, Equatable {
     public var uplinkURL: URL?
     public var deviceID: String
@@ -9,15 +9,45 @@ public struct CompanionConfig: Codable, Sendable, Equatable {
     public var cursor: Int64?
     /// Phase 3: fetch and send approved replies. Off until Alex turns it on; files from before phase 3 load as off.
     public var sendsEnabled: Bool
+    /// Settings that were constants in the fork, so a change is a config edit, not a rebuild.
+    public var tunables: Tunables
+
+    public static let supportFolder = "imsg-companion"
+
+    public struct Tunables: Codable, Sendable, Equatable {
+        public var dailySendCap: Int
+        public var backoffInitialSeconds: TimeInterval
+        public var backoffMaxSeconds: TimeInterval
+
+        public init(dailySendCap: Int = 30, backoffInitialSeconds: TimeInterval = 5, backoffMaxSeconds: TimeInterval = 300) {
+            self.dailySendCap = dailySendCap; self.backoffInitialSeconds = backoffInitialSeconds
+            self.backoffMaxSeconds = backoffMaxSeconds
+        }
+
+        enum CodingKeys: String, CodingKey {
+            case dailySendCap = "daily_send_cap", backoffInitialSeconds = "backoff_initial_seconds",
+                 backoffMaxSeconds = "backoff_max_seconds"
+        }
+
+        public init(from decoder: Decoder) throws {
+            let c = try decoder.container(keyedBy: CodingKeys.self)
+            let defaults = Tunables()
+            dailySendCap = try c.decodeIfPresent(Int.self, forKey: .dailySendCap) ?? defaults.dailySendCap
+            backoffInitialSeconds = try c.decodeIfPresent(TimeInterval.self, forKey: .backoffInitialSeconds)
+                ?? defaults.backoffInitialSeconds
+            backoffMaxSeconds = try c.decodeIfPresent(TimeInterval.self, forKey: .backoffMaxSeconds)
+                ?? defaults.backoffMaxSeconds
+        }
+    }
 
     public init(uplinkURL: URL? = nil, deviceID: String = CompanionConfig.newDeviceID(), paused: Bool = false,
-                cursor: Int64? = nil, sendsEnabled: Bool = false) {
+                cursor: Int64? = nil, sendsEnabled: Bool = false, tunables: Tunables = Tunables()) {
         self.uplinkURL = uplinkURL; self.deviceID = deviceID; self.paused = paused; self.cursor = cursor
-        self.sendsEnabled = sendsEnabled
+        self.sendsEnabled = sendsEnabled; self.tunables = tunables
     }
 
     enum CodingKeys: String, CodingKey {
-        case uplinkURL = "uplink_url", deviceID = "device_id", paused, cursor, sendsEnabled = "sends_enabled"
+        case uplinkURL = "uplink_url", deviceID = "device_id", paused, cursor, sendsEnabled = "sends_enabled", tunables
     }
 
     public init(from decoder: Decoder) throws {
@@ -27,6 +57,7 @@ public struct CompanionConfig: Codable, Sendable, Equatable {
         paused = try c.decode(Bool.self, forKey: .paused)
         cursor = try c.decodeIfPresent(Int64.self, forKey: .cursor)
         sendsEnabled = try c.decodeIfPresent(Bool.self, forKey: .sendsEnabled) ?? false
+        tunables = try c.decodeIfPresent(Tunables.self, forKey: .tunables) ?? Tunables()
     }
 
     public static func newDeviceID() -> String {

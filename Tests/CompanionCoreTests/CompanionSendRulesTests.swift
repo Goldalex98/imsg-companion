@@ -11,8 +11,10 @@ final class CompanionSendRulesTests: XCTestCase {
                      expiresAt: approved.addingTimeInterval(approvalLength))
     }
 
-    private func refusal(_ send: ApprovedSend, at offset: TimeInterval = 60, attempts: Int = 0) -> SendDetail? {
-        CompanionSendRules.refusal(for: send, now: approved.addingTimeInterval(offset), attemptsLast24h: attempts)
+    private func refusal(_ send: ApprovedSend, at offset: TimeInterval = 60, attempts: Int = 0, cap: Int = 30)
+        -> SendDetail? {
+        CompanionSendRules.refusal(for: send, now: approved.addingTimeInterval(offset), attemptsLast24h: attempts,
+                                   dailyCap: cap)
     }
 
     func test_validSendPasses() {
@@ -25,9 +27,10 @@ final class CompanionSendRulesTests: XCTestCase {
         XCTAssertEqual(refusal(send(), at: 3600), .expired)
     }
 
-    func test_approvalLengthBoundary() {
-        XCTAssertNil(refusal(send(approvalLength: 600)))
-        XCTAssertEqual(refusal(send(approvalLength: 601)), .approvalTooLong)
+    /// The approval-length rule is dropped (design §5.4): only expiry counts.
+    func test_longApprovalAllowedWhileUnexpired() {
+        XCTAssertNil(refusal(send(approvalLength: 3660), at: 3600))
+        XCTAssertEqual(refusal(send(approvalLength: 3660), at: 3660), .expired)
     }
 
     func test_hashMismatch() {
@@ -60,6 +63,11 @@ final class CompanionSendRulesTests: XCTestCase {
         XCTAssertEqual(refusal(send(), attempts: 30), .dailyCap)
     }
 
+    func test_dailyCapFromTunables() {
+        XCTAssertNil(refusal(send(), attempts: 1, cap: 2))
+        XCTAssertEqual(refusal(send(), attempts: 2, cap: 2), .dailyCap)
+    }
+
     func test_textIsNotTrimmed() {
         XCTAssertNil(refusal(send("hi ")))
         XCTAssertEqual(refusal(send("hi ", hash: CompanionTextHash.of("hi"))), .hashMismatch)
@@ -70,6 +78,6 @@ final class CompanionSendRulesTests: XCTestCase {
                                            textSHA256: "x", approvedAt: approved,
                                            expiresAt: approved.addingTimeInterval(700))
         XCTAssertEqual(refusal(everythingWrong, at: 800, attempts: 30), .expired)
-        XCTAssertEqual(refusal(everythingWrong, at: 60, attempts: 30), .approvalTooLong)
+        XCTAssertEqual(refusal(everythingWrong, at: 60, attempts: 30), .hashMismatch)
     }
 }

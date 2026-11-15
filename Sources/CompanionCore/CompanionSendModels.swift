@@ -1,7 +1,7 @@
 import CryptoKit
 import Foundation
 
-// iMessage companion (fork-only), phase 3. Wire types for the send routes in the uplink contract
+// Wire types for the send routes in the uplink contract
 // (`GET /imsg/sends`, `POST /imsg/send-results`).
 
 /// A send Alex approved on HomeChat, with its exact text.
@@ -29,7 +29,14 @@ public struct ApprovedSend: Codable, Sendable, Equatable {
 
 public struct SendsPage: Codable, Sendable, Equatable {
     public let sends: [ApprovedSend]
-    public init(sends: [ApprovedSend]) { self.sends = sends }
+    /// Optional remote control (contract, 2026-11-15). It can pause the agent, never turn sends on.
+    public let control: Control?
+    public init(sends: [ApprovedSend], control: Control? = nil) { self.sends = sends; self.control = control }
+
+    public struct Control: Codable, Sendable, Equatable {
+        public let paused: Bool?
+        public init(paused: Bool?) { self.paused = paused }
+    }
 }
 
 public enum SendOutcome: String, Codable, Sendable { case sent, notSent = "not_sent", ambiguous }
@@ -52,14 +59,28 @@ public struct SendResult: Codable, Sendable, Equatable {
     /// The Mac's own hash of the text it fetched.
     public let textSHA256: String
     public let detail: SendDetail
+    /// The service of the sent row read back from chat.db; nil when none was read back. Always encoded.
+    public let sentService: String?
 
-    public init(sendID: String, outcome: SendOutcome, anchorGUID: String?, textSHA256: String, detail: SendDetail) {
+    public init(sendID: String, outcome: SendOutcome, anchorGUID: String?, textSHA256: String, detail: SendDetail,
+                sentService: String? = nil) {
         self.sendID = sendID; self.outcome = outcome; self.anchorGUID = anchorGUID; self.textSHA256 = textSHA256
-        self.detail = detail
+        self.detail = detail; self.sentService = sentService
     }
 
     enum CodingKeys: String, CodingKey {
-        case sendID = "send_id", outcome, anchorGUID = "anchor_guid", textSHA256 = "text_sha256", detail
+        case sendID = "send_id", outcome, anchorGUID = "anchor_guid", textSHA256 = "text_sha256", detail,
+             sentService = "sent_service"
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(sendID, forKey: .sendID)
+        try c.encode(outcome, forKey: .outcome)
+        try c.encodeIfPresent(anchorGUID, forKey: .anchorGUID)
+        try c.encode(textSHA256, forKey: .textSHA256)
+        try c.encode(detail, forKey: .detail)
+        try c.encode(sentService, forKey: .sentService)
     }
 }
 

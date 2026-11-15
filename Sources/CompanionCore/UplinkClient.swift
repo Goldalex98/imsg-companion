@@ -1,6 +1,6 @@
 import Foundation
 
-// iMessage companion (fork-only). POST /imsg/messages (docs/superpowers/specs/2026-11-08-imsg-uplink-contract.md).
+// POST /imsg/messages (docs/specs/2026-11-08-imsg-uplink-contract.md).
 public enum UplinkError: Error, Equatable {
     case notHTTPS
     case unauthorized

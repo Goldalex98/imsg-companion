@@ -1,13 +1,13 @@
 import Foundation
 
-// iMessage companion (fork-only), phase 3. A fixed AppleScript that takes the thread, its participants and the
-// text as `argv`, so nothing from a message is ever part of the script's source (send notes, Borrow 2). The
-// identity checks follow the phase 0 send probe (spike c), which covered groups.
+// A fixed AppleScript that takes the thread, its participants and the text as `argv`, so nothing from a message
+// is ever part of the script's source. It checks the chat's identity and members, never its service: Messages
+// picks the route (agent design §5.4). `source(dispatch: false)` is the no-send preflight.
 
 public enum CompanionSendScriptError: Error, Equatable { case badTarget }
 
 public enum ScriptResult: Equatable, Sendable {
-    case submitted, notSubmitted(code: Int), uncertain(code: Int), timedOut, failedToStart, exitNonZero, unexpected
+    case submitted, ready, notSubmitted(code: Int), uncertain(code: Int), timedOut, failedToStart, exitNonZero, unexpected
 }
 
 public enum ScriptRunOutput: Equatable, Sendable { case output(String), timedOut, failedToStart, exitNonZero }
@@ -17,8 +17,18 @@ public protocol CompanionScriptRunning: Sendable {
 }
 
 public enum CompanionSendScript {
-    /// argv: thread GUID, participant count N, N handles, text (always last).
-    public static let source = """
+    /// argv: thread GUID, participant count N, N handles, text (always last). With `dispatch: false` the checks run
+    /// and it returns READY instead of sending.
+    public static func source(dispatch: Bool) -> String {
+        let lines = dispatch
+            ? ["set submissionAttempted to true", "send messageText to targetChat", #"return "SUBMITTED""#]
+            : [#"return "READY""#]
+        return template.replacingOccurrences(of: "<<FINISH>>", with: lines.joined(separator: "\n" + finishIndent))
+    }
+
+    private static let finishIndent = String(repeating: " ", count: 16)
+
+    private static let template = """
     on run argv
         set submissionAttempted to false
         try
@@ -33,7 +43,6 @@ public enum CompanionSendScript {
                 tell application "Messages"
                     set targetChat to chat id targetID
                     if (id of targetChat as text) is not targetID then error "identity" number 9001
-                    if service type of account of targetChat is not iMessage then error "service" number 9003
                     set seen to {}
                     repeat with p in participants of targetChat
                         set end of seen to (handle of p as text)
@@ -42,9 +51,7 @@ public enum CompanionSendScript {
                     repeat with h in expectedHandles
                         if seen does not contain (h as text) then error "member" number 9004
                     end repeat
-                    set submissionAttempted to true
-                    send messageText to targetChat
-                    return "SUBMITTED"
+                    <<FINISH>>
                 end tell
             end timeout
         on error detail number code
@@ -63,6 +70,7 @@ public enum CompanionSendScript {
     public static func parse(_ output: String) -> ScriptResult {
         let line = output.trimmingCharacters(in: .whitespacesAndNewlines)
         if line == "SUBMITTED" { return .submitted }
+        if line == "READY" { return .ready }
         for (prefix, make) in [("NOT_SUBMITTED:", ScriptResult.notSubmitted), ("UNCERTAIN:", ScriptResult.uncertain)]
             where line.hasPrefix(prefix) {
             guard let code = Int(line.dropFirst(prefix.count)) else { return .unexpected }

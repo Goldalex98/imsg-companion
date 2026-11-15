@@ -1,6 +1,6 @@
 import Foundation
 
-// iMessage companion (fork-only), phase 3. Turns what the script said and what chat.db shows after the baseline
+// Turns what the script said and what chat.db shows after the baseline
 // into a result. `not_sent` needs evidence (a refusal before sending, or a failed row); anything uncertain is
 // `ambiguous`, which is never retried (design §5.5).
 public enum CompanionSendDecision: Equatable, Sendable {

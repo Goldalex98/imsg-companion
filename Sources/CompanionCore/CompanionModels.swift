@@ -1,7 +1,7 @@
 import CryptoKit
 import Foundation
 
-// iMessage companion (fork-only). Wire format for docs/superpowers/specs/2026-11-08-imsg-uplink-contract.md.
+// Wire format for docs/specs/2026-11-08-imsg-uplink-contract.md (with its 2026-11-15 additions).
 
 public struct CompanionParticipant: Codable, Sendable, Equatable {
     public var handle: String
@@ -54,15 +54,22 @@ public struct CompanionMessage: Codable, Sendable, Equatable {
     public var text: String?
     public var replyToGUID: String?
     public var attachmentCount: Int
+    /// The row's own service as IMsgCore reports it (per message, never per thread). Always encoded.
+    public var service: String?
+    /// True only on a re-post of a message the sender unsent; encoded only when true.
+    public var unsent: Bool?
     public init(guid: String, rowid: Int64, threadGUID: String, fromMe: Bool, senderHandle: String?, sentAt: Date,
-                kind: Kind, text: String?, replyToGUID: String?, attachmentCount: Int) {
+                kind: Kind, text: String?, replyToGUID: String?, attachmentCount: Int, service: String? = nil,
+                unsent: Bool? = nil) {
         self.guid = guid; self.rowid = rowid; self.threadGUID = threadGUID; self.fromMe = fromMe
         self.senderHandle = senderHandle; self.sentAt = sentAt; self.kind = kind; self.text = text
-        self.replyToGUID = replyToGUID; self.attachmentCount = attachmentCount
+        self.replyToGUID = replyToGUID; self.attachmentCount = attachmentCount; self.service = service
+        self.unsent = unsent
     }
     enum CodingKeys: String, CodingKey {
         case guid, rowid, threadGUID = "thread_guid", fromMe = "from_me", senderHandle = "sender_handle",
-             sentAt = "sent_at", kind, text, replyToGUID = "reply_to_guid", attachmentCount = "attachment_count"
+             sentAt = "sent_at", kind, text, replyToGUID = "reply_to_guid", attachmentCount = "attachment_count",
+             service, unsent
     }
     public func encode(to encoder: Encoder) throws {
         var c = encoder.container(keyedBy: CodingKeys.self)
@@ -76,6 +83,8 @@ public struct CompanionMessage: Codable, Sendable, Equatable {
         try c.encode(text, forKey: .text)
         try c.encode(replyToGUID, forKey: .replyToGUID)
         try c.encode(attachmentCount, forKey: .attachmentCount)
+        try c.encode(service, forKey: .service)
+        if unsent == true { try c.encode(true, forKey: .unsent) }
     }
 }
 

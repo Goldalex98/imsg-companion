@@ -2,24 +2,26 @@ import Foundation
 import LocalAuthentication
 import Security
 
-// iMessage companion (fork-only). The HomeChat uplink token, one per Mac.
+// The HomeChat uplink token, one per Mac.
 public protocol CompanionTokenStoring: Sendable {
     func read() -> String?
     /// nil deletes. Returns false when the Keychain is unavailable.
     @discardableResult func write(_ token: String?) -> Bool
 }
 
-/// A generic password in the login keychain. The fork is self-signed and has no keychain-access-groups
-/// entitlement, so the data-protection keychain (which GrokBot uses) isn't available to it; the login item's
-/// access is tied to the app's designated requirement, which stays the same across the fork's rebuilds.
+/// A generic password in the login keychain. The agent has no keychain-access-groups entitlement, so the
+/// data-protection keychain isn't available to it; the login item's access is tied to the app's designated
+/// requirement (bundle ID plus certificate), which stays the same across rebuilds.
 public struct KeychainTokenStore: CompanionTokenStoring {
     private let service: String
     private static let account = "uplink-token"
     private static let unavailable: Set<OSStatus> = [errSecMissingEntitlement, errSecInteractionNotAllowed,
                                                      errSecAuthFailed, errSecNotAvailable]
 
-    public init(bundleIdentifier: String = Bundle.main.bundleIdentifier ?? "unknown") {
-        service = "\(bundleIdentifier).companion-uplink"
+    public static let defaultService = "io.github.goldalex98.imsg-companion.companion-uplink"
+
+    public init(service: String = KeychainTokenStore.defaultService) {
+        self.service = service
     }
 
     private var query: [String: Any] {

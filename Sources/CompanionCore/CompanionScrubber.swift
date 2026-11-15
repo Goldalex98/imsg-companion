@@ -1,6 +1,6 @@
 import Foundation
 
-// iMessage companion (fork-only). Runs on the Mac before anything is uplinked (contract: messages[].text, kind skipped).
+// Runs on the Mac before anything is uplinked (contract: messages[].text, kind skipped).
 public enum CompanionScrubber {
     public static let maxTextLength = 4000
     static let truncationSuffix = "…[truncated]"

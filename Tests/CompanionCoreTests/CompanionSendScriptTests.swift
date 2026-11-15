@@ -4,22 +4,26 @@ import XCTest
 
 final class CompanionSendScriptTests: XCTestCase {
     func test_sourceHasNoPlaceholdersAndTakesArgv() {
-        let source = CompanionSendScript.source
+        let source = CompanionSendScript.source(dispatch: true)
         XCTAssertTrue(source.contains("on run argv"))
         XCTAssertTrue(source.contains("with timeout of 20 seconds"))
         XCTAssertFalse(source.contains("%@"))
         XCTAssertFalse(source.contains("\\("))
+        XCTAssertFalse(source.contains("<<FINISH>>"))
         XCTAssertEqual(source.components(separatedBy: "send messageText to targetChat").count - 1, 1)
         XCTAssertFalse(source.contains("activate"), "never brings Messages forward")
         XCTAssertFalse(source.contains("make new"), "never creates a chat")
-        for code in ["9001", "9002", "9003", "9004", "9005"] { XCTAssertTrue(source.contains(code), code) }
+        for code in ["9001", "9002", "9004", "9005"] { XCTAssertTrue(source.contains(code), code) }
     }
 
     @MainActor
     func test_sourceCompiles() throws {
         var error: NSDictionary?
-        let script = try XCTUnwrap(NSAppleScript(source: CompanionSendScript.source))
-        XCTAssertTrue(script.compileAndReturnError(&error), "Compile-only check failed: \(error?.description ?? "unknown")")
+        for dispatch in [true, false] {
+            let script = try XCTUnwrap(NSAppleScript(source: CompanionSendScript.source(dispatch: dispatch)))
+            XCTAssertTrue(script.compileAndReturnError(&error),
+                          "Compile-only check failed (dispatch \(dispatch)): \(error?.description ?? "unknown")")
+        }
     }
 
     func test_argumentsLayout() throws {
@@ -54,7 +58,8 @@ final class CompanionSendScriptTests: XCTestCase {
         XCTAssertEqual(CompanionSendScript.parse("UNCERTAIN:-1712"), .uncertain(code: -1712))
         XCTAssertEqual(CompanionSendScript.parse("UNCERTAIN:abc"), .unexpected)
         XCTAssertEqual(CompanionSendScript.parse(""), .unexpected)
-        XCTAssertEqual(CompanionSendScript.parse("READY"), .unexpected)
+        XCTAssertEqual(CompanionSendScript.parse("READY"), .ready)
+        XCTAssertEqual(CompanionSendScript.parse("READY:1"), .unexpected)
     }
 
     func test_resultOfRunOutput() {

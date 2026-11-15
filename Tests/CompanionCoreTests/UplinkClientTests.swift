@@ -157,7 +157,7 @@ final class UplinkStub: URLProtocol, @unchecked Sendable {
 extension UplinkClientTests {
     private func sendsOutcome(status: Int, body: String = "{}") async -> Result<[ApprovedSend], SendsError> {
         UplinkStub.respond(status: status, body: body)
-        do throws(SendsError) { return .success(try await client().fetchSends(wait: 25)) } catch { return .failure(error) }
+        do throws(SendsError) { return .success(try await client().fetchSends(wait: 25).sends) } catch { return .failure(error) }
     }
 
     private func resultOutcome(status: Int) async -> Result<Void, SendsError> {
@@ -168,6 +168,12 @@ extension UplinkClientTests {
 
     private func sendJSON(_ id: String) -> String {
         #"{"send_id": "\#(id)", "thread_guid": "iMessage;-;+15555550100", "participants_fingerprint": "fp", "text": "hi", "text_sha256": "h", "approved_at": "2026-11-12T14:00:00Z", "expires_at": "2026-11-12T14:10:00Z"}"#
+    }
+
+    func test_fetchSendsReturnsControl() async throws {
+        UplinkStub.respond(status: 200, body: #"{"sends": [], "control": {"paused": true}}"#)
+        let page = try await client().fetchSends(wait: 25)
+        XCTAssertEqual(page.control, SendsPage.Control(paused: true))
     }
 
     func test_fetchSendsRequestShape() async throws {

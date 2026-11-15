@@ -61,14 +61,14 @@ public enum SendsError: Error, Equatable {
 }
 
 public protocol CompanionSendUplinking: Sendable {
-    func fetchSends(wait: Int) async throws(SendsError) -> [ApprovedSend]
+    func fetchSends(wait: Int) async throws(SendsError) -> SendsPage
     func postResult(_ result: SendResult) async throws(SendsError)
 }
 
 extension UplinkClient: CompanionSendUplinking {
     public static let maxSendsPerPage = 5
 
-    public func fetchSends(wait: Int) async throws(SendsError) -> [ApprovedSend] {
+    public func fetchSends(wait: Int) async throws(SendsError) -> SendsPage {
         guard var components = URLComponents(url: baseURL.appendingPathComponent("imsg/sends"),
                                              resolvingAgainstBaseURL: false) else { throw .notHTTPS }
         components.queryItems = [URLQueryItem(name: "wait", value: String(wait))]
@@ -81,7 +81,7 @@ extension UplinkClient: CompanionSendUplinking {
         case 200..<300:
             guard let page = try? CompanionJSON.decoder.decode(SendsPage.self, from: data),
                   page.sends.count <= Self.maxSendsPerPage else { throw .badResponse }
-            return page.sends
+            return page
         default: throw Self.failure(status)
         }
     }

@@ -15,3 +15,6 @@ Append only. Newest at the bottom. Public: no personal data.
 ## 2026-11-15 08:59 ET — Tasks 4–5
 - PR #3 (`ChatQueries`) merged `db5acc1`; `main` CI green.
 - PR #4 merged `151891d`: `CompanionService` pages with `IMsgCore`'s `messagesAfterPage` (read-only `MessageStore`) and takes threads, system-row facts and the from-me set from `ChatQueries`. The cursor follows `nextRowID`, held below a chat-less row under 10 s old. The code skip applies only in threads with no from-me row. Rulings: system and unreadable rows follow the fork's rules; the reset status is the machine string `database_replaced`. Not exercised by tests: `IMsgCore`'s URL-preview folding (a fake pager stands in) and any real `chat.db`. Send-safety review: no findings; three notes kept as deferred minors.
+
+## 2026-11-15 09:02 ET — Task 6
+- PR #5 merged `cd4538e` (PR CI green). `UnsendRelay` re-posts `.unsent` watcher events with the saved cursor, so the cursor never moves. `UplinkSerializer` carries every batch, so posts go one at a time; its test fails with the queue removed. Rulings: an unsend past the saved cursor is left to the reading loop; a 4xx rejection drops the re-post; re-posts carry Contacts names. Not run: a real `MessageWatcher`, and HomeChat's update path.

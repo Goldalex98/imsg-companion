@@ -18,6 +18,7 @@ public struct SendRecord: Codable, Sendable, Equatable {
     public var outcome: SendOutcome?
     public var detail: SendDetail?
     public var anchorGUID: String?
+    public var sentService: String?
     public var finishedAt: Date?
     public var reportedAt: Date?
 
@@ -30,7 +31,7 @@ public struct SendRecord: Codable, Sendable, Equatable {
     enum CodingKeys: String, CodingKey {
         case sendID = "send_id", threadGUID = "thread_guid", textLength = "text_length", textSHA256 = "text_sha256",
              baselineRowID = "baseline_rowid", createdAt = "created_at", state, dispatchedAt = "dispatched_at", outcome,
-             detail, anchorGUID = "anchor_guid", finishedAt = "finished_at", reportedAt = "reported_at"
+             detail, anchorGUID = "anchor_guid", sentService = "sent_service", finishedAt = "finished_at", reportedAt = "reported_at"
     }
 }
 

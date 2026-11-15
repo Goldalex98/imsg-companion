@@ -1,0 +1,11 @@
+# IMsgCore bumps (agent design §5.6): tagged releases only, after a 3-day wait. CI's automerge job merges a PR
+# that touches only Package.swift/Package.resolved once the tests pass.
+version: 2
+updates:
+  - package-ecosystem: swift
+    directory: "/"
+    schedule:
+      interval: daily
+    cooldown:
+      default-days: 3
+    open-pull-requests-limit: 3

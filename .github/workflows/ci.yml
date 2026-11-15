@@ -29,3 +29,40 @@ jobs:
         run: swift test
       - name: App bundle (ad hoc)
         run: scripts/build-app.sh --verify-only
+      - name: Dependabot diff check
+        run: scripts/test-dependabot-diff.sh
+
+  # Dependabot's IMsgCore bumps only (Alex, 2026-11-14). Every other PR is merged by hand on green.
+  automerge:
+    needs: test
+    # Opened by Dependabot and this run started by it: a collaborator's push to its branch doesn't qualify.
+    if: >-
+      github.event_name == 'pull_request' && github.actor == 'dependabot[bot]' &&
+      github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+      pull-requests: write
+      actions: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      PR: ${{ github.event.pull_request.number }}
+      HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          # The base's copy of the check, never the PR's own.
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - name: Merge a dependency-only bump
+        run: |
+          # Only Package.swift's imsg exact-tag pin and Package.resolved may change (scripts/dependabot-diff-ok.sh).
+          if ! gh pr diff "$PR" | scripts/dependabot-diff-ok.sh; then
+            echo "left for review"
+            exit 0
+          fi
+          gh pr merge "$PR" --merge --match-head-commit "$HEAD_SHA"
+          # A merge made with GITHUB_TOKEN starts no push run, so start main's CI by hand.
+          gh workflow run ci.yml --ref main

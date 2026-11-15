@@ -1,10 +1,12 @@
 import XCTest
 
 /// The agent links IMsgCore only for reading. Its send, launch, bridge, typing and contact-prompting APIs must
-/// never appear in our sources (CLAUDE.md; plan Global Constraints).
+/// never appear in our sources (CLAUDE.md; plan Global Constraints). The Contacts grant also allows writes, so the
+/// Contacts write types are banned too.
 final class ForbiddenAPITests: XCTestCase {
     private let forbidden = ["MessageSender", "MessagesLauncher", "IMCoreBridge", "IMsgBridgeClient", "TypingIndicator",
-                             "IMsgEventTailer", "AudioMessagePreparer", "ContactResolver.create"]
+                             "IMsgEventTailer", "AudioMessagePreparer", "ContactResolver.create", "CNSaveRequest",
+                             "CNMutableContact"]
 
     func test_noSendOrBridgeAPIs() throws {
         let sources = URL(fileURLWithPath: #filePath)

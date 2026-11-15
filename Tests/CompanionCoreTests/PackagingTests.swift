@@ -23,9 +23,11 @@ final class PackagingTests: XCTestCase {
         XCTAssertNil(info["SUFeedURL"], "no Sparkle")
     }
 
-    func test_entitlementsAreAppleEventsOnly() throws {
+    // Hardened runtime refuses Contacts, with no prompt, unless the signature carries the addressbook entitlement.
+    func test_entitlementsAreAppleEventsAndContactsOnly() throws {
         XCTAssertEqual(try plist("Resources/ImsgCompanion.entitlements") as NSDictionary,
-                       ["com.apple.security.automation.apple-events": true] as NSDictionary)
+                       ["com.apple.security.automation.apple-events": true,
+                        "com.apple.security.personal-information.addressbook": true] as NSDictionary)
     }
 
     // ExitTimeOut covers a 40 s send fetch, a 35 s script and a ~22 s read-back after SIGTERM (Task 9 review).

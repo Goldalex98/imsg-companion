@@ -1,19 +1,21 @@
 # Status: imsg-companion
 
-**Updated:** 2026-11-15 10:26 ET
-**At:** Plan Tasks 1–11 done (dependency proof, scaffold, safety core, `ChatQueries`, reading through `IMsgCore`, unsends, the send path, status and control, commands and the run loop, app bundle and launchd, the nightly updater); Task 12 (Dependabot bumps) in progress. The agent is installed on the MacBook and idles: no token, sends off, Full Disk Access not granted. Nothing has read real message content and nothing has been sent.
-**Next:** Plan Task 12 (Dependabot and the automerge job), then Task 13 (runbooks), then the whole-branch review.
-**Phase:** Building (plan Tasks 2–13); then cutover and acceptance with Alex, after HomeChat's §7 deploy.
-**Milestones:** Dependency proof ✓ · Scaffold ✓ · Safety core ✓ · Reading ✓ · Sending ✓ (built, never run against Messages) · Status and control ✓ · Packaging ✓ · Updates ✓ (built; no nightly run yet) · Cutover · Acceptance
+**Updated:** 2026-11-15 10:45 ET
+**At:** Plan Tasks 1–13 are built and merged. The agent is ready for cutover and waits on HomeChat's §7 deploy. It is installed on the MacBook and idle: no token, sends off, Full Disk Access not granted. Nothing has read real message content and nothing has been sent.
+**Next:** The whole-branch review of the plan's work, then cutover (`docs/runbooks/cutover.md`) after HomeChat deploys.
+**Phase:** Built; next are cutover and acceptance with Alex (`docs/runbooks/stage-u.md`, `stage-s.md`), after HomeChat's §7 deploy.
+**Milestones:** Dependency proof ✓ · Scaffold ✓ · Safety core ✓ · Reading ✓ · Sending ✓ (built, never run against Messages) · Status and control ✓ · Packaging ✓ · Updates ✓ (built; no nightly run yet) · Runbooks ✓ · Cutover · Acceptance
 
 _Rewrite in place on every state change. Why things are the way they are goes in [LOG.md](LOG.md) (append only). Format: the user-level `flight-deck` skill. This repo is public: no names, numbers, hosts or tokens here._
 
 ## RUNNING NOW
-- CI (`ci.yml`) on PRs and pushes to `main`, now with the ad hoc app build.
+- CI (`ci.yml`) on PRs and pushes to `main`: tests, the ad hoc app build and the Dependabot diff check. The `automerge` job runs only on Dependabot's PRs.
+- Dependabot (swift, daily, 3-day cooldown). No bump PR yet: the automerge live check (Task 12 Step 4) is pending.
 - `ImsgCompanion.app` in `~/Applications` on the MacBook, under launchd (`io.github.goldalex98.imsg-companion`, parent pid 1), installed 2026-11-15 10:11 ET from `7a1e4ee`. No token, sends off, Full Disk Access denied: every uplink path stops at "not set up". The updater job is loaded too, but the installed build predates the `update` command, so its 03:30 run exits with the usage message until the agent is reinstalled.
 
 ## QUEUED
-- Plan Tasks 12–13 (`docs/plans/2026-11-15-imsg-standalone-agent.md`).
+- The whole-branch review of the plan's work, and its one fix pass.
+- Cutover (`docs/runbooks/cutover.md`), then Stage U and Stage S.
 - HomeChat's half (design §7, the contract's 2026-11-15 additions): `homechat-bot`'s own session and PRs, deployed before cutover.
 
 ## BLOCKED
@@ -25,6 +27,8 @@ _Rewrite in place on every state change. Why things are the way they are goes in
 - None for building. Cutover and acceptance need him later (grants, test contacts, his typed yes per real send).
 
 ## DONE
+- 2026-11-15 10:45 ET: runbooks for cutover, Stage U and Stage S (plan Task 13).
+- 2026-11-15 10:43 ET: PR #11 merged (`f269194`): Dependabot, plus an automerge job gated on Dependabot being both the PR author and the run's actor. Package.swift may change only on the imsg pin line.
 - 2026-11-15 10:24 ET: PR #10 merged (`2c9262a`): the nightly updater: fetch, test, build, swap, health mark, roll back (259 tests; a green check counts only main's own push or dispatch runs, after the automated security review).
 - 2026-11-15 10:15 ET: PR #9 merged (`77cffcb`): app bundle, signing and launchd; installed on the MacBook, idle (246 tests; signed build checks bundle ID + certificate, no cdhash).
 - 2026-11-15 09:22 ET: PR #8 merged (`3926922`): commands and the run loop; SIGTERM finishes an in-flight send before exit (241 tests; send-safety review: no Critical, one Important carried to Task 10's `ExitTimeOut`).

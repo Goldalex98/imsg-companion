@@ -39,3 +39,12 @@ Append only. Newest at the bottom. Public: no personal data.
 - PR #10 merged `2c9262a` (PR CI green). `imsg-companion update` runs once per night from launchd at 03:30. It reads main's head over the public API, unauthenticated, and needs that sha's newest `ci.yml` run on main to have succeeded. It skips if HomeChat hasn't answered in 30 minutes, and defers while a send has been in progress more than 10 minutes. It runs the tests and builds the app into `build/`, keeps the old app as `previous/` and swaps the new one in. It rolls back unless the new agent writes a health mark (read and HomeChat reachable) within 180 s. A failed sha is never retried.
 - The automated security review found that the green check trusted any run of the sha. A pull request run, including one from a fork's branch named main, could count. Now only runs whose event is push or workflow_dispatch, on main, for that sha count. A test failed first, and the live API carries those fields.
 - Not run for real: no nightly update has happened. The installed build predates `update`, so it needs a reinstall first.
+
+## 2026-11-15 10:45 ET — Tasks 12 and 13
+- PR #11 merged `f269194` (PR CI green; `automerge` skipped, as it should be on a non-Dependabot PR). The automated security review found that the gate trusted the PR author alone. It now also needs `github.actor` to be Dependabot. `scripts/dependabot-diff-ok.sh`, the base commit's copy, accepts only `Package.resolved` and the exact-tag imsg pin line. Nine synthetic diff cases run in CI. Not adopted: `dependabot/fetch-metadata`, a third-party action. Pending until the first real bump: the 3-day wait, a merge commit, a dispatched green `main` run, and whether Dependabot rewrites an `exact:` pin.
+- Runbooks in `docs/runbooks/`:
+  - Cutover proves HomeChat's §7 deploy by starting the agent locally paused with the new token: the health mark's `homechat_ok_at` is set only by a 2xx `POST /imsg/status`.
+  - The fork's cursor is copied by a short script while both apps are stopped.
+  - Rollback also stops the updater job.
+  - U8 forces a rollback by pausing the agent locally before an update. "HomeChat unreachable" is the agent stopped for over 30 minutes.
+  - "A send in progress defers" can't be staged with sends off, so it stays test-only.

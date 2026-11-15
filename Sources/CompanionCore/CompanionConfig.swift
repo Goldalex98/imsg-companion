@@ -102,6 +102,24 @@ public struct CompanionConfig: Codable, Sendable, Equatable {
     }
 }
 
+public extension CompanionConfig {
+    /// Load, change and save under an exclusive lock on a file beside the config, so the running agent and a command
+    /// never overwrite each other's change (a cursor advance against a `pause`, say).
+    static func update(at url: URL, _ change: (inout CompanionConfig) -> Void) throws {
+        let folder = url.deletingLastPathComponent()
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true,
+                                                attributes: [.posixPermissions: 0o700])
+        let descriptor = open(folder.appendingPathComponent(".companion.lock").path, O_CREAT | O_RDWR, 0o600)
+        guard descriptor >= 0 else { throw CocoaError(.fileWriteUnknown) }
+        defer { close(descriptor) }
+        guard flock(descriptor, LOCK_EX) == 0 else { throw CocoaError(.fileWriteUnknown) }
+        defer { flock(descriptor, LOCK_UN) }
+        var config = load(from: url)
+        change(&config)
+        try config.save(to: url)
+    }
+}
+
 /// What a Settings save did, for the status section to show.
 public struct CompanionSettingsOutcome: Equatable, Sendable {
     /// The saved address's host; nil when the address wasn't saved.
@@ -129,9 +147,8 @@ public extension CompanionConfig {
                                             error: "Enter an https:// address.")
         }
         var config = CompanionConfig.load(from: configURL)
-        config.uplinkURL = parsed
         do {
-            try config.save(to: configURL)
+            try CompanionConfig.update(at: configURL) { $0.uplinkURL = parsed; config = $0 }
         } catch {
             return CompanionSettingsOutcome(host: nil, deviceID: nil, tokenSaved: tokens.read() != nil,
                                             error: "Couldn't save the settings file.")

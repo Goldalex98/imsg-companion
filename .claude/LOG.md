@@ -97,3 +97,19 @@ Append only. Newest at the bottom. Public: no personal data.
   - Fix: the updater floors its start time to whole seconds. A test through the real `HealthMarkStore` failed first. Further tests cover a mark from the previous second and a same-second mark of another version.
   - The rollback itself worked live: the old app came back and the agent ran again.
 - From the fix's send-safety review, not taken: the daily send cap can count one fewer dispatch at its exact 24 h edge, because ledger times are stored in whole seconds (Minor). This is noted for the deferred ledger minors.
+
+## 2026-11-15 17:08 ET — Stage U: install by hand, Contacts, U2–U4
+- Fable reviewed both Stage U diagnoses and proved them from live logs.
+  - Contacts: tccd logged "requires entitlement com.apple.security.personal-information.addressbook but it is missing". The earlier empty log search used the wrong predicate. In zsh, `log` is a builtin, so use `/usr/bin/log`.
+  - Updater: launchd spawned the agent about 0.06 s after the updater's `started`, and the mark held whole seconds.
+  - Fable also found that kickstarting the installed (old) updater would rerun the bug. It would probably condemn PR #17's commit too, so the fix was installed by hand instead.
+- Apple's documentation pages render with JavaScript, so a page fetch sees an empty shell. Their content is public JSON at `developer.apple.com/tutorials/data/documentation/<path>.json`. That source gives the addressbook entitlement as read-write access to contacts.
+- Install: `build-app.sh` then `install.sh` from `main` `2c8de3f`. The signature names the identifier and certificate, with no cdhash, and carries both entitlements. Full Disk Access survived. Runbook step 0a's `codesign -dv` prints no Authority lines, so it now uses `-dvv`.
+- Contacts: the prompt appeared and Alex allowed it. tccd logged the prompt and created the grant. The running agent kept reading `unknown` until `kickstart -k`, because the answer is cached per process. The terminal's own readout reports the host app's permission, not the agent's. U9 notes the restart.
+- U2 and U3 pass. HomeChat's session gave the counts, read-only:
+  - Rows 232746–232750 are all stored once as text. The fork's last row was 232745.
+  - There are no duplicate guids; guid is the primary key.
+  - The test text was stored at the second the agent's batch was accepted. The 5 s check is timed from the agent reading the row, because this terminal has no Full Disk Access.
+- U4 passes on HomeChat's stored state. A flag opened on the test question, then closed with `replied` when Alex's reply was stored.
+  - HomeChat's flagger runs every 30 minutes. A new flag is hidden for 3 hours unless it names a date within 48 hours, so "seen on the phone" can't be checked the same day. The runbook's U4 now says so.
+  - The flag was opened by a manual flagger pass that HomeChat's session ran. It used one call from HomeChat's daily cap and sent no message.

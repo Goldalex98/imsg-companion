@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(swift build)",
+      "Bash(swift test)",
+      "Bash(scripts/build-app.sh --verify-only)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./**/*.local.json)",
+      "Read(./.local/**)",
+      "Read(~/Library/Messages/**)",
+      "Read(//Users/*/Library/Messages/**)",
+      "Read(~/Library/Application Support/AddressBook/**)",
+      "Read(//Users/*/Library/Application Support/AddressBook/**)"
+    ]
+  }
+}

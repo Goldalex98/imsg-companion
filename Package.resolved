@@ -1,0 +1,51 @@
+{
+  "originHash" : "173ab4e1c458e317c6c78e472ed603ace54e2b1846771f462f56aaeb23da06ad",
+  "pins" : [
+    {
+      "identity" : "commander",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/steipete/Commander.git",
+      "state" : {
+        "revision" : "3f5a3cb1f19ce7ca79fdc2111a09dfb3da200c1c",
+        "version" : "0.3.0"
+      }
+    },
+    {
+      "identity" : "csqlite",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/stephencelis/CSQLite",
+      "state" : {
+        "revision" : "3fecd9f88f50c3a9baf3456e7d4af1b16e71dc23",
+        "version" : "3.53.4"
+      }
+    },
+    {
+      "identity" : "imsg",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/openclaw/imsg.git",
+      "state" : {
+        "revision" : "1bc0679663bf3978a744a61a5a9161d9ba518764",
+        "version" : "0.21.0"
+      }
+    },
+    {
+      "identity" : "phonenumberkit",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/PhoneNumberKit/PhoneNumberKit.git",
+      "state" : {
+        "revision" : "ff40a615c71bf3e1785562c86f7e38bdea29660a",
+        "version" : "5.0.14"
+      }
+    },
+    {
+      "identity" : "sqlite.swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/stephencelis/SQLite.swift.git",
+      "state" : {
+        "revision" : "4114679379eeb4538638f49ec14e1854dd9cf73c",
+        "version" : "0.17.0"
+      }
+    }
+  ],
+  "version" : 3
+}

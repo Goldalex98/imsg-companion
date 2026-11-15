@@ -88,7 +88,7 @@ public actor CompanionSendExecutor {
         let key = SHA256.hash(data: Data("\(url.absoluteString)\n\(token)".utf8)).map { String(format: "%02x", $0) }.joined()
         if let stop {
             if stop.key == key {
-                if !stop.tokenRejected { await pollControl(makeUplink(url, token)) }
+                if !stop.tokenRejected { await pollControl(makeUplink(url, token), key: key) }
                 return status(.stopped(stop.reason))
             }
             self.stop = nil
@@ -98,7 +98,7 @@ public actor CompanionSendExecutor {
 
         if await inactive() == nil {
             if let blocked = recover() {
-                await pollControl(uplink)
+                await pollControl(uplink, key: key)
                 return status(.stopped(blocked))
             }
             if let halted = await reportUnreported(uplink, key: key) { return status(halted) }
@@ -361,12 +361,13 @@ public actor CompanionSendExecutor {
     /// While sends are stopped, keep fetching for HomeChat's control alone, so a pause from WhatsApp still arrives
     /// (design §5.5). The page's sends are ignored and nothing is recorded. A failed fetch just waits for the next
     /// cycle, after `controlRetry`.
-    private func pollControl(_ uplink: any CompanionSendUplinking) async {
+    private func pollControl(_ uplink: any CompanionSendUplinking, key: String) async {
         if let controlRetryAt, controlRetryAt > now() { return }
         do throws(SendsError) {
             onControl(try await uplink.fetchSends(wait: Self.fetchWait).control)
             controlRetryAt = nil
         } catch {
+            if case .unauthorized = error { _ = halt("token rejected", key: key, tokenRejected: true) }
             controlRetryAt = now() + Self.controlRetry
         }
     }

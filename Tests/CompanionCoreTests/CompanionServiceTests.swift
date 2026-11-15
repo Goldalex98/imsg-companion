@@ -374,6 +374,23 @@ final class CompanionServiceTests: XCTestCase {
         XCTAssertEqual(savedCursor, 45)
     }
 
+    // Reset days after the replacement: rows that arrived since the replacement are still read (the first-run
+    // window counts back from the replacement, not from the reset).
+    func test_resetCursorReadsFromTheReplacementWindow() async throws {
+        try configure(cursor: 45)
+        let f = try CompanionFixture()
+        let chat = try directChat(f)
+        for _ in 0..<40 { try f.addMessage(chats: [chat], text: "old", date: clock.now - 10 * 86_400, handle: alice) }
+        let s = service(f.url.path)
+        _ = await s.tick()
+        let replaced = clock.now
+        clock.advance(5 * 86_400)
+        for _ in 0..<3 { try f.addMessage(chats: [chat], text: "new", date: replaced + 86_400, handle: alice) }
+        try ConfigEdits.resetCursor(configURL: configURL)
+        _ = await s.tick()
+        XCTAssertEqual(uplink.batches.first?.messages.map(\.rowid), [41, 42, 43])
+    }
+
     func test_deletingTheNewestMessagesIsNotAReset() async throws {
         try configure(cursor: 0)
         let f = try CompanionFixture()

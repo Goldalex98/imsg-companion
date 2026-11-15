@@ -108,7 +108,7 @@ public actor CompanionService {
             return update(.offline(retryIn: retryAt.timeIntervalSince(now())), config: config)
         }
 
-        if config.databaseReplaced { closeReader(); return update(.stopped(Self.resetStatus), config: config) }
+        if config.databaseReplacedAt != nil { closeReader(); return update(.stopped(Self.resetStatus), config: config) }
         dropReaderIfFileReplaced()
         let reader: ChatQueries
         do throws(ChatQueryError) {
@@ -118,7 +118,8 @@ public actor CompanionService {
             // cursor must not resume reading over the gap. `reset-cursor` clears it. The cursor is never lowered here.
             if let cursor = config.cursor, try reader.highWaterRowID() < cursor {
                 caughtUp = false
-                try? CompanionConfig.update(at: configURL) { $0.databaseReplaced = true }
+                let at = now()
+                try? CompanionConfig.update(at: configURL) { $0.databaseReplacedAt = $0.databaseReplacedAt ?? at }
                 return update(.stopped(Self.resetStatus), config: config)
             }
             let version = try reader.dataVersion()
@@ -138,7 +139,7 @@ public actor CompanionService {
             } else if let cursor = firstRunCursor {
                 start = cursor
             } else {
-                if let recent = try reader.firstRowID(since: now() - Self.firstRunWindow) {
+                if let recent = try reader.firstRowID(since: config.firstRunSince ?? now() - Self.firstRunWindow) {
                     start = recent - 1
                 } else {
                     start = try reader.maxRowID()
@@ -312,7 +313,7 @@ public actor CompanionService {
             firstRunCursor = cursor
             return
         }
-        try? CompanionConfig.update(at: configURL) { $0.cursor = cursor }
+        try? CompanionConfig.update(at: configURL) { $0.cursor = cursor; $0.firstRunSince = nil }
         config = CompanionConfig.load(from: configURL)
         firstRunCursor = nil
     }

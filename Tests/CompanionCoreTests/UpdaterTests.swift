@@ -12,7 +12,7 @@ final class UpdaterTests: XCTestCase {
     private var health: HealthBox!
     private var sendBusy: PauseFlag!
     private var reachable: PauseFlag!
-    private var paused: PauseFlag!
+    private var paused: PausedAfter!
 
     override func setUpWithError() throws {
         folder = FileManager.default.temporaryDirectory.appendingPathComponent("updater-\(UUID().uuidString)")
@@ -25,7 +25,7 @@ final class UpdaterTests: XCTestCase {
         health = HealthBox()
         sendBusy = PauseFlag(false)
         reachable = PauseFlag(true)
-        paused = PauseFlag(false)
+        paused = PausedAfter()
     }
 
     override func tearDownWithError() throws { try? FileManager.default.removeItem(at: folder) }
@@ -34,7 +34,7 @@ final class UpdaterTests: XCTestCase {
         let clock = clock!, health = health!, runner = runner!, busy = sendBusy!, reachable = reachable!, paused = paused!
         let version = installedVersion ?? String(installed.prefix(12))
         return Updater(paths: paths, label: "agent.label", uid: 501, runner: runner, github: github,
-                       homechatReachable: { reachable.value }, sendInProgress: { busy.value }, isPaused: { paused.value },
+                       homechatReachable: { reachable.value }, sendInProgress: { busy.value }, isPaused: { paused.next() },
                        installedVersion: { version }, health: { health.mark(after: runner) },
                        now: { clock.now }, sleep: { clock.advance($0) })
     }
@@ -44,8 +44,10 @@ final class UpdaterTests: XCTestCase {
     private var previous: String { paths.previous.path }
     private var built: String { paths.build.appendingPathComponent("ImsgCompanion.app").path }
 
+    private var heal: [String] { ["launchctl print gui/501/agent.label"] }
+
     private var fetchAndBuild: [String] {
-        ["git -C \(src) fetch --quiet origin main", "git -C \(src) checkout --quiet --detach \(head)",
+        heal + ["git -C \(src) fetch --quiet origin main", "git -C \(src) checkout --quiet --detach \(head)",
          "swift test --package-path \(src)", "build-app.sh --out \(paths.build.path)"]
     }
 
@@ -69,14 +71,14 @@ final class UpdaterTests: XCTestCase {
     func test_headAlreadyInstalledDoesNothing() async {
         let result = await updater(installedVersion: String(head.prefix(12))).runOnce()
         XCTAssertEqual(result.result, .none)
-        XCTAssertEqual(runner.calls, [])
+        XCTAssertEqual(runner.calls, heal)
     }
 
     func test_redHeadMarksCIRedThenClears() async {
         github.green = []
         var result = await updater().runOnce()
         XCTAssertEqual(result.result, .none)
-        XCTAssertEqual(runner.calls, [])
+        XCTAssertEqual(runner.calls, heal)
         XCTAssertEqual(UpdateState.load(from: paths.state).ciRedSince, clock.now)
         let since = clock.now
         clock.advance(86_400)
@@ -107,7 +109,7 @@ final class UpdaterTests: XCTestCase {
         runner.calls = []
         let next = await updater().runOnce()
         XCTAssertEqual(next.result, .none)
-        XCTAssertEqual(runner.calls, [], "the same commit isn't retried")
+        XCTAssertEqual(runner.calls, heal, "the same commit isn't retried")
     }
 
     // An offline night must never roll back a good build: nothing is touched.
@@ -115,7 +117,7 @@ final class UpdaterTests: XCTestCase {
         reachable.value = false
         let result = await updater().runOnce()
         XCTAssertEqual(result.result, .none)
-        XCTAssertEqual(runner.calls, [])
+        XCTAssertEqual(runner.calls, heal)
     }
 
     func test_sendInProgressDefersTheSwap() async {
@@ -153,6 +155,37 @@ final class UpdaterTests: XCTestCase {
         XCTAssertEqual(UpdateState.load(from: paths.state).failedCommits, [])
     }
 
+    func test_rollbackStopsIfTheFailedAppCantMoveAside() async {
+        runner.failing = ["mv \(app) \(staging)"]
+        let result = await updater().runOnce()
+        XCTAssertEqual(result.result, .failed)
+        XCTAssertFalse(runner.calls.contains("mv \(previous) \(app)"), "never moved into the failed bundle")
+        XCTAssertEqual(runner.calls.last, bootstrap)
+        XCTAssertEqual(UpdateState.load(from: paths.state).failedCommits, [head])
+    }
+
+    func test_pauseDuringTheBuildSkipsTheSwap() async {
+        paused.after(calls: 1)
+        let result = await updater().runOnce()
+        XCTAssertEqual(result.result, .none)
+        XCTAssertEqual(runner.calls, fetchAndBuild, "built, never swapped")
+        XCTAssertEqual(UpdateState.load(from: paths.state).failedCommits, [])
+    }
+
+    func test_pauseDuringTheHealthWaitDoesntCondemnTheCommit() async {
+        paused.after(calls: 2)
+        let result = await updater().runOnce()
+        XCTAssertEqual(result.result, .rolledBack)
+        XCTAssertEqual(UpdateState.load(from: paths.state).failedCommits, [], "retried another night")
+    }
+
+    // An agent left stopped (an updater killed mid-swap) is started again by the next run.
+    func test_stoppedAgentIsStartedAgain() async {
+        runner.loaded = false
+        _ = await updater(installedVersion: String(head.prefix(12))).runOnce()
+        XCTAssertEqual(runner.calls, ["launchctl print gui/501/agent.label", bootstrap])
+    }
+
     func test_rollbackNeverDeletesTheOnlyApp() async {
         runner.failing = ["mv \(previous) \(app)"]
         let result = await updater().runOnce()
@@ -167,7 +200,7 @@ final class UpdaterTests: XCTestCase {
         paused.value = true
         let result = await updater().runOnce()
         XCTAssertEqual(result.result, .none)
-        XCTAssertEqual(runner.calls, [])
+        XCTAssertEqual(runner.calls, heal)
         XCTAssertEqual(UpdateState.load(from: paths.state).failedCommits, [])
     }
 
@@ -183,7 +216,7 @@ final class UpdaterTests: XCTestCase {
         runner.failing = ["swift test"]
         let result = await updater().runOnce()
         XCTAssertEqual(result.result, .failed)
-        XCTAssertEqual(runner.calls, Array(fetchAndBuild.prefix(3)))
+        XCTAssertEqual(runner.calls, Array(fetchAndBuild.prefix(4)))
         XCTAssertEqual(UpdateState.load(from: paths.state).failedCommits, [head])
     }
 
@@ -191,14 +224,14 @@ final class UpdaterTests: XCTestCase {
         try FileManager.default.removeItem(at: paths.src)
         health.version = String(head.prefix(12))
         _ = await updater().runOnce()
-        XCTAssertEqual(runner.calls.first, "git clone --quiet https://github.com/Goldalex98/imsg-companion.git \(src)")
+        XCTAssertEqual(runner.calls.dropFirst().first, "git clone --quiet https://github.com/Goldalex98/imsg-companion.git \(src)")
     }
 
     func test_overlappingRunIsSkipped() async throws {
         let held = try XCTUnwrap(UpdaterLock(folder: folder))
         let result = await updater().runOnce()
         XCTAssertEqual(result.result, .none)
-        XCTAssertEqual(runner.calls, [])
+        XCTAssertEqual(runner.calls, [], "not even the agent check")
         _ = held
     }
 
@@ -247,6 +280,11 @@ final class FakeCommands: CommandRunning, @unchecked Sendable {
     private let lock = NSLock()
     private var recorded: [String] = []
     nonisolated(unsafe) var failing: [String] = []
+    private var isLoaded = true
+    var loaded: Bool {
+        get { lock.withLock { isLoaded } }
+        set { lock.withLock { isLoaded = newValue } }
+    }
     var calls: [String] {
         get { lock.withLock { recorded } }
         set { lock.withLock { recorded = newValue } }
@@ -256,7 +294,9 @@ final class FakeCommands: CommandRunning, @unchecked Sendable {
         lock.withLock { recorded.append(line) }
         if failing.contains(where: { line.hasPrefix($0) }) { return CommandResult(status: 1, output: "") }
         // `launchctl print` failing means the job has left launchd.
-        if line.hasPrefix("launchctl print") { return CommandResult(status: 113, output: "") }
+        if line.hasPrefix("launchctl bootout") { lock.withLock { isLoaded = false } }
+        if line.hasPrefix("launchctl bootstrap") { lock.withLock { isLoaded = true } }
+        if line.hasPrefix("launchctl print") { return CommandResult(status: loaded ? 0 : 113, output: "") }
         return CommandResult(status: 0, output: "")
     }
 }
@@ -278,5 +318,25 @@ final class HealthBox: @unchecked Sendable {
         guard let version, runner.calls.contains(where: { $0.hasPrefix("launchctl bootstrap") }) else { return nil }
         return HealthMark(version: version, startedAt: .distantFuture, readOKAt: .distantFuture,
                           homechatOKAt: .distantFuture)
+    }
+}
+
+/// `false` for the first `calls` reads, then `true`; `value = true` pauses from the start.
+final class PausedAfter: @unchecked Sendable {
+    private let lock = NSLock()
+    private var remaining: Int? = nil
+    private var count = 0
+    var value: Bool {
+        get { lock.withLock { remaining == 0 } }
+        set { lock.withLock { remaining = newValue ? 0 : nil } }
+    }
+    func after(calls: Int) { lock.withLock { remaining = calls } }
+    func next() -> Bool {
+        lock.withLock {
+            guard let left = remaining else { return false }
+            if left == 0 { return true }
+            remaining = left - 1
+            return false
+        }
     }
 }

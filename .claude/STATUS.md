@@ -1,8 +1,8 @@
 # Status: imsg-companion
 
-**Updated:** 2026-11-15 10:45 ET
+**Updated:** 2026-11-15 11:00 ET
 **At:** Plan Tasks 1–13 are built and merged. The agent is ready for cutover and waits on HomeChat's §7 deploy. It is installed on the MacBook and idle: no token, sends off, Full Disk Access not granted. Nothing has read real message content and nothing has been sent.
-**Next:** The whole-branch review of the plan's work, then cutover (`docs/runbooks/cutover.md`) after HomeChat deploys.
+**Next:** Cutover (`docs/runbooks/cutover.md`) after HomeChat deploys. Reinstall the agent from `main` first (cutover step 0a).
 **Phase:** Built; next are cutover and acceptance with Alex (`docs/runbooks/stage-u.md`, `stage-s.md`), after HomeChat's §7 deploy.
 **Milestones:** Dependency proof ✓ · Scaffold ✓ · Safety core ✓ · Reading ✓ · Sending ✓ (built, never run against Messages) · Status and control ✓ · Packaging ✓ · Updates ✓ (built; no nightly run yet) · Runbooks ✓ · Cutover · Acceptance
 
@@ -14,7 +14,6 @@ _Rewrite in place on every state change. Why things are the way they are goes in
 - `ImsgCompanion.app` in `~/Applications` on the MacBook, under launchd (`io.github.goldalex98.imsg-companion`, parent pid 1), installed 2026-11-15 10:11 ET from `7a1e4ee`. No token, sends off, Full Disk Access denied: every uplink path stops at "not set up". The updater job is loaded too, but the installed build predates the `update` command, so its 03:30 run exits with the usage message until the agent is reinstalled.
 
 ## QUEUED
-- The whole-branch review of the plan's work, and its one fix pass.
 - Cutover (`docs/runbooks/cutover.md`), then Stage U and Stage S.
 - HomeChat's half (design §7, the contract's 2026-11-15 additions): `homechat-bot`'s own session and PRs, deployed before cutover.
 
@@ -27,7 +26,8 @@ _Rewrite in place on every state change. Why things are the way they are goes in
 - None for building. Cutover and acceptance need him later (grants, test contacts, his typed yes per real send).
 
 ## DONE
-- 2026-11-15 10:45 ET: runbooks for cutover, Stage U and Stage S (plan Task 13).
+- 2026-11-15 11:00 ET: PR #13: the final review's fix pass (no Critical; 4 Important fixed, then 5 more from its send-safety review). The updater never leaves the agent without an app or stopped. HomeChat's pause still arrives while sends are stopped. `database_replaced` stays stopped until `reset-cursor` (272 tests).
+- 2026-11-15 10:50 ET: PR #12 merged (`f076928`): runbooks for cutover, Stage U and Stage S.
 - 2026-11-15 10:43 ET: PR #11 merged (`f269194`): Dependabot, plus an automerge job gated on Dependabot being both the PR author and the run's actor. Package.swift may change only on the imsg pin line.
 - 2026-11-15 10:24 ET: PR #10 merged (`2c9262a`): the nightly updater: fetch, test, build, swap, health mark, roll back (259 tests; a green check counts only main's own push or dispatch runs, after the automated security review).
 - 2026-11-15 10:15 ET: PR #9 merged (`77cffcb`): app bundle, signing and launchd; installed on the MacBook, idle (246 tests; signed build checks bundle ID + certificate, no cdhash).

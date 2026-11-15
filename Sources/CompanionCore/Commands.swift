@@ -40,10 +40,14 @@ public enum ConfigEdits {
         try CompanionConfig.update(at: configURL) { $0.paused = paused }
     }
 
-    /// After a `database_replaced` stop: forget the cursor, so reading starts again from the first-run window.
-    /// HomeChat ignores rows it already holds (by guid).
+    /// After a `database_replaced` stop: forget the cursor, so reading starts again from the first-run window
+    /// before the replacement, however long ago that was. HomeChat ignores rows it already holds (by guid).
     public static func resetCursor(configURL: URL) throws {
-        try CompanionConfig.update(at: configURL) { $0.cursor = nil; $0.databaseReplaced = false }
+        try CompanionConfig.update(at: configURL) {
+            $0.firstRunSince = $0.databaseReplacedAt.map { $0 - CompanionService.firstRunWindow }
+            $0.cursor = nil
+            $0.databaseReplacedAt = nil
+        }
     }
 
     public static func setSendsEnabled(_ enabled: Bool, configURL: URL) throws {

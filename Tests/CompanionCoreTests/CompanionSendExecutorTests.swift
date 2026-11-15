@@ -494,6 +494,19 @@ final class CompanionSendExecutorTests: XCTestCase {
         XCTAssertNil(ledger.record("snd-2"))
     }
 
+    func test_tokenRejectedDuringControlPollStopsPolling() async {
+        messagesWrites()
+        uplink.pages = [[send()]]
+        uplink.resultErrors = [.conflict]
+        let exec = executor()
+        _ = await exec.cycle()
+        uplink.fetchErrors = [.unauthorized]
+        _ = await exec.cycle()
+        clock.advance(120)
+        _ = await exec.cycle()
+        XCTAssertEqual(uplink.fetches, 2, "a 401 on the control poll stops polling like any rejected token")
+    }
+
     func test_rejectedTokenStopsPolling() async {
         uplink.fetchErrors = [.unauthorized]
         let exec = executor()

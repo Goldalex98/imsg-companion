@@ -115,6 +115,9 @@ public actor Updater {
         if !files.fileExists(atPath: paths.app.path), files.fileExists(atPath: paths.previous.path) {
             _ = await runner.run("/bin/mv", [paths.previous.path, paths.app.path])
             _ = await runner.run("/bin/launchctl", ["bootstrap", "gui/\(uid)", paths.agentPlist.path])
+        } else if !(await run("/bin/launchctl", ["print", job])) {
+            // Left stopped (an updater killed mid-swap, say): never leave the agent down.
+            await startAgent()
         }
         if let since = try? await github.oldestOpenDependabotPR() { state.bumpPendingSince = since } else {
             state.bumpPendingSince = nil
@@ -157,6 +160,8 @@ public actor Updater {
             await sleep(10)
             waited += 10
         }
+        // Paused while building: the new agent couldn't pass the health check, so try another night.
+        guard !isPaused() else { return .none }
 
         // Stage the new app beside the old one first, so the agent stops only for two renames. A failure from here
         // on is the Mac's, not the commit's: nothing is added to `failedCommits` until the new app has run.
@@ -192,9 +197,15 @@ public actor Updater {
         }
         // Roll back without ever deleting the only app: the failed one moves aside, and is deleted once the old
         // one is back. If the old one can't come back, the new one stays rather than leaving none.
+        // A pause during the wait, not the build, explains a missing mark: roll back, but retry the commit later.
+        let condemned = isPaused() ? nil : head
         await stopAgent()
         _ = await runner.run("/bin/rm", ["-rf", paths.staging.path])
-        _ = await runner.run("/bin/mv", [paths.app.path, paths.staging.path])
+        // If the failed app can't move aside, `mv previous app` would nest the old app inside it: keep it running.
+        guard await run("/bin/mv", [paths.app.path, paths.staging.path]) else {
+            await startAgent()
+            return finish(&state, .failed, version: version, failed: condemned)
+        }
         if await run("/bin/mv", [paths.previous.path, paths.app.path]) {
             await startAgent()
             _ = await runner.run("/bin/rm", ["-rf", paths.staging.path])
@@ -202,7 +213,7 @@ public actor Updater {
             _ = await runner.run("/bin/mv", [paths.staging.path, paths.app.path])
             await startAgent()
         }
-        return finish(&state, .rolledBack, version: version, failed: head)
+        return finish(&state, .rolledBack, version: version, failed: condemned)
     }
 
     private func run(_ executable: String, _ arguments: [String]) async -> Bool {

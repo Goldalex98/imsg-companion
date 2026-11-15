@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>io.github.goldalex98.imsg-companion</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>__HOME__/Applications/ImsgCompanion.app/Contents/MacOS/imsg-companion</string>
+		<string>run</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<dict>
+		<key>SuccessfulExit</key>
+		<false/>
+	</dict>
+	<!-- After SIGTERM the agent finishes an in-flight send and its read-back: up to a 40 s fetch, a 35 s script
+	     and ~22 s of read-back. launchd's default (20 s) would cut that short. -->
+	<key>ExitTimeOut</key>
+	<integer>120</integer>
+	<key>ProcessType</key>
+	<string>Interactive</string>
+	<key>StandardOutPath</key>
+	<string>__HOME__/Library/Logs/imsg-companion/agent.log</string>
+	<key>StandardErrorPath</key>
+	<string>__HOME__/Library/Logs/imsg-companion/agent.log</string>
+</dict>
+</plist>

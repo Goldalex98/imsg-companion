@@ -81,18 +81,17 @@ func runAgent() async -> Never {
                                          runner: ObservedRunner(OsascriptRunner(), last: lastScript),
                                          isPaused: { guardian.blocksUplink() || stopping.value },
                                          onControl: { pause.apply($0) })
+    let snapshot: @Sendable () async -> AgentStatus = {
+        StatusSnapshot.make(config: CompanionConfig.load(from: configURL), agentVersion: agentVersion,
+                            reader: latest.reader, sender: latest.sender, permissions: permissions(names, lastScript),
+                            remotePaused: pause.remotePaused, watcherRestarts: await relay.restarts,
+                            forkRunning: guardian.forkRunning)
+    }
     let reporter = StatusReporter(configURL: configURL, tokens: tokens,
                                   makeUplink: { MarkingStatusUplink(client: UplinkClient(baseURL: $0, token: $1),
                                                                     health: health) },
-                                  snapshot: {
-                                      StatusSnapshot.make(config: CompanionConfig.load(from: configURL),
-                                                          agentVersion: agentVersion, reader: latest.reader,
-                                                          sender: latest.sender,
-                                                          permissions: permissions(names, lastScript),
-                                                          remotePaused: pause.remotePaused,
-                                                          watcherRestarts: await relay.restarts,
-                                                          forkRunning: guardian.forkRunning)
-                                  })
+                                  snapshot: snapshot)
+    let statusFile = AgentStatusFile(folder: support)
 
     Task {
         while !stopping.value {
@@ -108,6 +107,7 @@ func runAgent() async -> Never {
     Task {
         while !stopping.value {
             await reporter.tick(now: Date())
+            statusFile.write(await snapshot(), at: Date())
             await pace(seconds: 30)
         }
     }
@@ -165,6 +165,12 @@ case .promptContacts:
     print(granted ? "contacts: granted" : "contacts: denied")
 
 case .status:
+    if let entry = AgentStatusFile(folder: support).read() {
+        print("the running agent's last snapshot:")
+        printJSON(entry)
+    } else {
+        print("no snapshot from a running agent; readouts below are this terminal's own, not the agent's")
+    }
     let config = CompanionConfig.load(from: configURL)
     let names = ContactsNameResolver()
     let status = StatusSnapshot.make(config: config, agentVersion: agentVersion, reader: CompanionStatus(state: .idle),

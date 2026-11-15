@@ -26,3 +26,6 @@ Append only. Newest at the bottom. Public: no personal data.
 
 ## 2026-11-15 09:16 ET — Task 8
 - PR #7 merged `b58ab85` (PR CI green). `AgentStatus` carries exactly the contract's keys, with nulls always sent. `StatusReporter` posts every 15 min and on a change. `PauseState` holds HomeChat's pause in memory and can only pause. `ForkGuard` blocks uplink while the fork app runs. The permission readouts ask for nothing. The Contacts resolver is lifted from the fork. Task 9 must apply every poll's control, gate all three uplink paths with `ForkGuard`, and set `last_error` only from fixed codes.
+
+## 2026-11-15 09:23 ET — Task 9
+- PR #8 merged `3926922` (PR CI green). `run` wires the reader, the unsend relay, the executor and the status reporter, all behind `ForkGuard`. SIGTERM reads as a pause for the executor, and the agent waits for the current cycle before exiting. Config writes from the agent and the commands share an `flock`. `update` waits for the updater (Task 11) instead of shipping as a placeholder. Review's Important finding: exit can take a long-poll plus a dispatch, so the launchd plist sets `ExitTimeOut` 120 (Task 10). Not run yet: the agent itself.

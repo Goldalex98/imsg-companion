@@ -1,29 +1,32 @@
 # Status: imsg-companion
 
-**Updated:** 2026-11-15 11:16 ET
-**At:** Plan Tasks 1–13 are built, reviewed and merged. The agent is installed on the MacBook from `main` (`16ee2f7`, Apple Development signed). Its own snapshot reads Full Disk Access granted, sends off, no token. While the fork app runs, uplink stays blocked. Nothing has read real message content and nothing has been sent.
-**Next:** HomeChat's §7 half, in `homechat-bot`'s own session: no PR exists for it yet. Then cutover (`docs/runbooks/cutover.md`; step 0a and the Full Disk Access grant are done).
-**Phase:** Built; next are cutover and acceptance with Alex (`docs/runbooks/stage-u.md`, `stage-s.md`), after HomeChat's §7 deploy.
-**Milestones:** Dependency proof ✓ · Scaffold ✓ · Safety core ✓ · Reading ✓ · Sending ✓ (built, never run against Messages) · Status and control ✓ · Packaging ✓ · Updates ✓ (built; no nightly run yet) · Runbooks ✓ · Cutover · Acceptance
+**Updated:** 2026-11-15 14:24 ET
+**At:** Cutover done (`docs/runbooks/cutover.md` steps 1–10). The agent runs from `main` (`16ee2f7`) under launchd with its own HomeChat token: not paused, sends off, reading and posting status. The fork app is quit and its Login Item is off, but it stays installed as the fallback. HomeChat accepted the agent's status post, which proves HomeChat's §7 end to end. Nothing has been sent.
+**Next:** Stage U with Alex (`docs/runbooks/stage-u.md`). HomeChat refuses every send until the fork's token is revoked, as expected through Stage U.
+**Phase:** Acceptance: Stage U, then (after the fork's token is revoked) Stage S.
+**Milestones:** Dependency proof ✓ · Scaffold ✓ · Safety core ✓ · Reading ✓ · Sending ✓ (built, never run against Messages) · Status and control ✓ · Packaging ✓ · Updates ✓ (built; no nightly run yet) · Runbooks ✓ · Cutover ✓ · Acceptance
 
 _Rewrite in place on every state change. Why things are the way they are goes in [LOG.md](LOG.md) (append only). Format: the user-level `flight-deck` skill. This repo is public: no names, numbers, hosts or tokens here._
 
 ## RUNNING NOW
 - CI (`ci.yml`) on PRs and pushes to `main`: tests, the ad hoc app build and the Dependabot diff check. The `automerge` job runs only on Dependabot's PRs.
 - Dependabot (swift, daily, 3-day cooldown). No bump PR yet: the automerge live check (Task 12 Step 4) is pending.
-- `ImsgCompanion.app` in `~/Applications` on the MacBook, under launchd (`io.github.goldalex98.imsg-companion`), installed 2026-11-15 11:14 ET from `16ee2f7`. Full Disk Access granted (the agent's own readout). No token, sends off, uplink blocked while the fork app runs. The 03:30 updater job is loaded; no nightly run has happened yet.
+- `ImsgCompanion.app` in `~/Applications` on the MacBook, under launchd (`io.github.goldalex98.imsg-companion`), from `16ee2f7`, restarted 2026-11-15 14:22 ET after cutover. Full Disk Access granted. Token in the Keychain, not paused, sends off, `fork_running` false, cursor carried over from the fork. The 03:30 updater job is loaded again; no nightly run yet.
+- The fork app: quit, Login Item off, still installed and paused as the fallback (rollback in `cutover.md`).
 
 ## QUEUED
-- Cutover (`docs/runbooks/cutover.md`), then Stage U and Stage S.
-- HomeChat's half (design §7, the contract's 2026-11-15 additions): `homechat-bot`'s own session and PRs, deployed before cutover.
+- Stage U (`stage-u.md`), then Stage S (`stage-s.md`).
+- Before Stage S: revoke the fork's token in HomeChat (Alex says when; Claude runs it). Until then HomeChat refuses every send because two Macs are linked.
 
 ## BLOCKED
 - None.
 
 ## AWAITING Alex
-- None for building. Cutover and acceptance need him later (grants, test contacts, his typed yes per real send).
+- Stage U: his steps per `stage-u.md`.
+- The go-ahead to revoke the fork's token before Stage S.
 
 ## DONE
+- 2026-11-15 14:24 ET: cutover steps 1–10 passed. HomeChat's status endpoint answered 2xx with the new token (`homechat_ok_at` set one second after the agent started, `last_error` null). The fork app was quit and its Login Item switched off (Alex), and its cursor was copied over. The agent and the updater were restarted unpaused, and the first read succeeded.
 - 2026-11-15 11:14 ET: reinstalled from `main` `16ee2f7` (Alex approved); Alex granted Full Disk Access; the agent's snapshot confirms `granted`. PR #13 merged (`16ee2f7`), `main` CI green.
 - 2026-11-15 11:00 ET: PR #13: the final review's fix pass (no Critical; 4 Important fixed, then 5 more from its send-safety review). The updater never leaves the agent without an app or stopped. HomeChat's pause still arrives while sends are stopped. `database_replaced` stays stopped until `reset-cursor` (272 tests).
 - 2026-11-15 10:50 ET: PR #12 merged (`f076928`): runbooks for cutover, Stage U and Stage S.

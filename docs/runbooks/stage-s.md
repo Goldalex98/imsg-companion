@@ -7,7 +7,7 @@ Design §6. Run only after Stage U passes.
 ## Before S0
 1. **Revoke the fork's token in HomeChat** (Alex, via HomeChat). Until then, HomeChat refuses every send.
 2. **Turn sends on:** Claude runs `"$BIN" sends on`, only on Alex's say-so. The status should show `sends_enabled: true`. Sends can only be turned on at the Mac.
-3. **Find each test thread's chat ROWID:** HomeChat's session reads it from the uplinked thread. It's an integer, with no handle or name.
+3. **Find each test thread's chat ROWID:** HomeChat doesn't store it (its threads are keyed by chat guid). Claude reads it on the Mac, read-only and integers only: `sqlite3 -readonly "file:$HOME/Library/Messages/chat.db?mode=ro" "SELECT chat_id FROM chat_message_join WHERE message_id = <a message ROWID HomeChat gives>"`. A contact reached at two addresses has two chats, so preflight the one the test question actually arrives in.
 
 ## S0: preflight on each chat kind; Automation shows under the agent
 - **Action:** Claude runs `"$BIN" preflight <chat ROWID>` for each of these, if one exists:
@@ -22,6 +22,7 @@ Design §6. Run only after Stage U passes.
   - Alex looks at System Settings → Privacy & Security → Automation.
 - **Pass:**
   - Each preflight is `ready`, or refused with a code that is explained.
+  - The first preflight raises the Automation prompt and comes back `refused` with -1712 (AppleEvent timeout) while the prompt waits. After Allow, run it again.
   - Automation → Messages is listed under ImsgCompanion.
   - `automation_messages: granted`.
   - Nothing is sent: preflight never dispatches.

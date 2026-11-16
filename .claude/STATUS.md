@@ -1,31 +1,39 @@
 # Status: imsg-companion
 
-**Updated:** 2026-11-15 19:05 ET
-**At:** Stage U is under way: U1–U5 passed (U5's never-written-thread code case not run). The agent runs `2c8de3f` (installed by hand at 15:16 ET), with Contacts and Full Disk Access granted, not paused, sends off, and real texts uplinking. Nothing has been sent.
-**Next:** U6 (unsend), U7 (WhatsApp pause/resume), U9 (unsaved number), then U8's remaining cases on the next merged PR. Each HomeChat-side check is asked of HomeChat's own session, with Alex relaying.
-**Phase:** Acceptance: Stage U, then (after the fork's token is revoked) Stage S.
-**Milestones:** Dependency proof ✓ · Scaffold ✓ · Safety core ✓ · Reading ✓ · Sending ✓ (built, never run against Messages) · Status and control ✓ · Packaging ✓ · Updates ✓ (rollback seen live; install unproven until the next PR) · Runbooks ✓ · Cutover ✓ · Acceptance (Stage U: U1–U5 ✓)
+**Updated:** 2026-11-15 20:19 ET
+**At:** In use. The agent runs `2c8de3f` under launchd with Full Disk Access, Contacts and Automation granted, not paused, **sends on**. One approved reply has been sent (S1). The fork's token is revoked.
+**Next:** check the 2026-11-16 03:30 updater run (its first scheduled install, of `main`'s head) in `updater.log` and the status. Optional later: the unproven cases listed under DONE 20:17.
+**Phase:** In use. Acceptance closed by Alex after S1, with sends left on.
+**Milestones:** Dependency proof ✓ · Scaffold ✓ · Safety core ✓ · Reading ✓ · Sending ✓ (S1 live) · Status and control ✓ · Packaging ✓ · Updates ✓ (rollback seen live; scheduled install pending 03:30) · Runbooks ✓ · Cutover ✓ · Acceptance ✓ (U1–U6, S0–S1; rest skipped by Alex)
 
 _Rewrite in place on every state change. Why things are the way they are goes in [LOG.md](LOG.md) (append only). Format: the user-level `flight-deck` skill. This repo is public: no names, numbers, hosts or tokens here._
 
 ## RUNNING NOW
 - CI (`ci.yml`) on PRs and pushes to `main`: tests, the ad hoc app build and the Dependabot diff check. The `automerge` job runs only on Dependabot's PRs.
 - Dependabot (swift, daily, 3-day cooldown). No bump PR yet: the automerge live check (Task 12 Step 4) is pending.
-- `ImsgCompanion.app` in `~/Applications` on the MacBook, under launchd, running `2c8de3f` since 15:16 ET (`scripts/install.sh`, Alex approved). Full Disk Access and Contacts granted, Automation not yet asked. Token in the Keychain, not paused, sends off. The updater job is loaded and has not run since the reinstall (`runs = 0`). Its first scheduled run, 2026-11-16 03:30, should install `main` `b59f35e` with the fixed health check (U8's install case).
-- The fork app: quit, Login Item off, still installed and paused as the fallback (rollback in `cutover.md`).
+- `ImsgCompanion.app` in `~/Applications` on the MacBook, under launchd, running `2c8de3f` since 15:16 ET (`scripts/install.sh`, Alex approved). Full Disk Access, Contacts and Automation granted. Token in the Keychain, not paused, sends on (Alex, 19:16). The updater job is loaded and has not run since the reinstall (`runs = 0`). Its first scheduled run, 2026-11-16 03:30, should install `main`'s head with the fixed health check (U8's install case).
+- The fork app: quit, Login Item off, still installed and paused as the fallback. Its token is revoked, so a rollback needs a fresh one (`cutover.md`).
 
 ## QUEUED
-- Stage U: U6, U7, U9, then U8 (install, no-update, paused, health-fail rollback, HomeChat unreachable). Then Stage S (`stage-s.md`).
-- Before Stage S: revoke the fork's token in HomeChat (Alex says when; Claude runs it). Until then HomeChat refuses every send because two Macs are linked.
+- Check the 2026-11-16 03:30 updater run.
+- Optional, only if Alex asks: the skipped acceptance cases (DONE 20:17).
+- For `homechat-bot`'s session: a WhatsApp nudge isn't withdrawn when its flag closes as `unsent` (LOG 19:13).
 
 ## BLOCKED
 - None.
 
 ## AWAITING Alex
-- Stage U: his steps per `stage-u.md`.
-- The go-ahead to revoke the fork's token before Stage S.
+- None.
 
 ## DONE
+- 2026-11-15 20:17 ET: Alex closed acceptance after S1 and kept sends on. Not run, so unproven live: S2–S5 (group, SMS with accents and emoji, changed participants, expiry), group/SMS/RCS preflights, a pause from WhatsApp (U7), an unsaved number (U9), and U8's test cases beyond tonight's scheduled install. `"$BIN" sends off` at the Mac is the proven stop.
+- 2026-11-15 20:13 ET: S1 passed. Alex approved one reply in HomeChat to the test contact. The agent sent it once (`sent`, `sent_service` `iMessage`, read-back `confirmed`), reported it 3 s after dispatch, and the test phone received it (Alex). The ledger record has no text field. The reply went to the thread the question arrived in (a second 1:1 chat for the test contact, labelled SMS), not the preflighted one.
+- 2026-11-15 19:48 ET: S0 passed for the iMessage 1:1: preflight `ready`, `automation_messages: granted` after Alex allowed the prompt (the first try timed out at -1712 while the prompt waited). Group, SMS and RCS preflights not run.
+- 2026-11-15 19:34 ET: the fork's token revoked by HomeChat's session (Alex approved). Zero sends had ever been queued. The new Mac is the only linked device.
+- 2026-11-15 19:16 ET: Alex chose to skip the rest of Stage U (U7, U8's test steps, U9) and move to Stage S. Unproven live as a result: a pause from WhatsApp, and an unsaved number's handling. U8's install runs on its own at 03:30. Alex approved revoking the fork's token (handed to HomeChat's session, per the runbook). `sends on` run at the Mac on Alex's say-so; snapshot shows `sends_enabled: true`. Nothing sent: HomeChat still refuses sends until the revoke.
+- 2026-11-15 19:13 ET: the U6 flag's WhatsApp nudge was seen on Alex's phone (first phone-side proof for a flag).
+- 2026-11-15 19:12 ET: U6 passed. A test-contact question was flagged (`date`, visible at once), then unsent. HomeChat marked the row `unsent`, wiped its text and closed the flag with `unsent` within the same second the agent relayed it. `watcher_restarts` stayed 0. HomeChat-side finding, for `homechat-bot`: the WhatsApp nudge went out 1 s before the unsend and nothing withdraws it.
+- 2026-11-15 19:07 ET: PR #19 merged (`0ae9902`): U5 results and runbook notes. PR CI green; `main` push CI 43778528893 green.
 - 2026-11-15 19:04 ET: U5 passed. Catch-up after a `bootout`: 2 rows stored once each. Offline retry: 3 network failures in the OS log, then delivered on reconnect (`last_error` in the status not observed: no snapshot fell inside the window). SSN scrub: 1 marker, 0 copies of the digits. Code text in a thread Alex writes in: stored with its text. The never-written-thread code case was not run (no such sender), so unit tests are its only cover.
 - 2026-11-15 17:11 ET: PR #18 merged (`b59f35e`): U1–U4 results and runbook fixes. PR CI green; `main` push CI 43767886480 green.
 - 2026-11-15 17:06 ET: U4 passed on HomeChat's stored state. A flag opened on the test question (HomeChat's session ran one flagger pass by hand), and it closed with `replied` the same second Alex's reply was stored. Seeing it on the phone is not verified: the flag was still in HomeChat's 3-hour hold.

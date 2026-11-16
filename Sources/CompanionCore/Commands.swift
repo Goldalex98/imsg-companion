@@ -4,7 +4,7 @@ import Foundation
 /// through the executor, after Alex approved the exact text.
 public enum Command: Equatable, Sendable {
     case run, setup(url: URL), status, pause, resume, sendsOn, sendsOff, preflight(chatRowID: Int64), promptContacts,
-         update, resetCursor
+         update, resetCursor, presentNow
 
     public static func parse(_ args: [String]) -> Command? {
         switch args {
@@ -17,6 +17,8 @@ public enum Command: Equatable, Sendable {
         case ["prompt-contacts"]: .promptContacts
         case ["update"]: .update
         case ["reset-cursor"]: .resetCursor
+        // Not in the usage: the deletion reconcile's acceptance check asks the running agent for a run now.
+        case ["present-now"]: .presentNow
         case let a where a.count == 2 && a[0] == "setup": URL(string: a[1]).map { .setup(url: $0) }
         case let a where a.count == 2 && a[0] == "preflight":
             Int64(a[1]).flatMap { $0 > 0 ? .preflight(chatRowID: $0) : nil }
@@ -104,6 +106,36 @@ public struct PreflightFiles: Sendable {
 
     public func result() -> Result? {
         (try? Data(contentsOf: resultURL)).flatMap { try? CompanionJSON.decoder.decode(Result.self, from: $0) }
+    }
+}
+
+/// `present-now` writes a request; the running agent's next deletion-reconcile pass ignores the daily gate once and
+/// writes the outcome (counts only).
+public struct PresentFiles: Sendable {
+    public let requestURL: URL
+    public let resultURL: URL
+
+    public init(folder: URL) {
+        requestURL = folder.appendingPathComponent("present-request.json")
+        resultURL = folder.appendingPathComponent("present-result.json")
+    }
+
+    public func request() throws {
+        try FileManager.default.createDirectory(at: requestURL.deletingLastPathComponent(),
+                                                withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        try Data("{}".utf8).write(to: requestURL, options: .atomic)
+    }
+
+    /// One pass: `run` is told whether a request is waiting. The request stays until a run happens.
+    public func handle(run: (_ force: Bool) async -> PresentOutcome?) async {
+        let force = FileManager.default.fileExists(atPath: requestURL.path)
+        guard let outcome = await run(force) else { return }
+        if force { try? FileManager.default.removeItem(at: requestURL) }
+        try? CompanionJSON.encoder.encode(outcome).write(to: resultURL, options: .atomic)
+    }
+
+    public func result() -> PresentOutcome? {
+        (try? Data(contentsOf: resultURL)).flatMap { try? CompanionJSON.decoder.decode(PresentOutcome.self, from: $0) }
     }
 }
 

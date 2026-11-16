@@ -44,6 +44,15 @@ public struct RowFacts: Equatable, Sendable {
     }
 }
 
+/// One `chat.db` message row for the deletion reconcile: its GUID and date in Apple reference seconds.
+public struct PresentRow: Sendable, Equatable {
+    /// Seconds from 1970-01-01 to 2001-01-01, where `chat.db` dates start.
+    public static let unixOffset: Int64 = 978_307_200
+    public let guid: String
+    public let date: TimeInterval
+    public init(guid: String, date: TimeInterval) { self.guid = guid; self.date = date }
+}
+
 public final class ChatQueries: @unchecked Sendable {
     private var db: OpaquePointer?
     /// The file identity taken just before the database was opened; compare it with `CompanionFileIdentity.of`
@@ -121,6 +130,23 @@ public final class ChatQueries: @unchecked Sendable {
             if sqlite3_column_type($0, 0) != SQLITE_NULL { value = sqlite3_column_int64($0, 0) }
         }
         return value
+    }
+
+    /// Every message row joined to a chat and dated at or after `sinceUnix` less one second, keyed by `chat.guid`
+    /// (rows of every chat row with that GUID together). Reactions, system and unsent rows count; rows with no
+    /// GUID or no chat are left out. The extra second keeps a row whose stored send time rounds up into the window.
+    public func presentRows(sinceUnix: Int64) throws(ChatQueryError) -> [String: [PresentRow]] {
+        let date = "(CASE WHEN m.date > 1000000000000 THEN m.date / 1000000000.0 ELSE m.date END)"
+        var result: [String: [PresentRow]] = [:]
+        try each("""
+            SELECT c.guid, m.guid, \(date) FROM message m
+            JOIN chat_message_join cmj ON cmj.message_id = m.ROWID JOIN chat c ON c.ROWID = cmj.chat_id
+            WHERE \(date) >= ? AND m.guid IS NOT NULL AND m.guid != '' AND c.guid IS NOT NULL AND c.guid != ''
+            """, [.double(Double(sinceUnix - PresentRow.unixOffset - 1))]) { s in
+            guard let chat = Self.text(s, 0), let guid = Self.text(s, 1) else { return }
+            result[chat, default: []].append(PresentRow(guid: guid, date: sqlite3_column_double(s, 2)))
+        }
+        return result
     }
 
     public func threads(guids: Set<String>) throws(ChatQueryError) -> [CompanionThread] {

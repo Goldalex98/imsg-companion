@@ -95,20 +95,37 @@ public struct UplinkBatch: Codable, Sendable, Equatable {
     public var firstRun: Bool
     public var threads: [CompanionThread]
     public var messages: [CompanionMessage]
+    /// The deletion reconcile (contract 2026-11-15 additions (2)); only on a present-only request, else left out.
+    public var present: [PresentEntry]?
     public init(deviceID: String, batchID: UUID, cursor: Int64, firstRun: Bool, threads: [CompanionThread],
-                messages: [CompanionMessage]) {
+                messages: [CompanionMessage], present: [PresentEntry]? = nil) {
         self.deviceID = deviceID; self.batchID = batchID; self.cursor = cursor; self.firstRun = firstRun
-        self.threads = threads; self.messages = messages
+        self.threads = threads; self.messages = messages; self.present = present
     }
     enum CodingKeys: String, CodingKey {
-        case deviceID = "device_id", batchID = "batch_id", cursor, firstRun = "first_run", threads, messages
+        case deviceID = "device_id", batchID = "batch_id", cursor, firstRun = "first_run", threads, messages, present
     }
+}
+
+/// Every message GUID still in `chat.db` for one thread, sent at or after `since` (Unix epoch seconds).
+public struct PresentEntry: Codable, Sendable, Equatable {
+    public var threadGUID: String
+    public var since: Int64
+    public var guids: [String]
+    public init(threadGUID: String, since: Int64, guids: [String]) {
+        self.threadGUID = threadGUID; self.since = since; self.guids = guids
+    }
+    enum CodingKeys: String, CodingKey { case threadGUID = "thread_guid", since, guids }
 }
 
 public struct UplinkAck: Codable, Sendable, Equatable {
     public var acceptedCursor: Int64
-    public init(acceptedCursor: Int64) { self.acceptedCursor = acceptedCursor }
-    enum CodingKeys: String, CodingKey { case acceptedCursor = "accepted_cursor" }
+    /// True when HomeChat dropped the request's `present` whole (malformed, over a limit, too old).
+    public var presentSkipped: Bool?
+    public init(acceptedCursor: Int64, presentSkipped: Bool? = nil) {
+        self.acceptedCursor = acceptedCursor; self.presentSkipped = presentSkipped
+    }
+    enum CodingKeys: String, CodingKey { case acceptedCursor = "accepted_cursor", presentSkipped = "present_skipped" }
 }
 
 /// Lowercase hex SHA-256 of the normalized handles, sorted and joined with "\n" (contract: participants_fingerprint).

@@ -1,8 +1,8 @@
 # Status: imsg-companion
 
-**Updated:** 2026-11-16 06:00 ET
+**Updated:** 2026-11-16 06:35 ET
 **At:** In use. The agent runs `dfdf468` (installed by the 03:30 updater) under launchd with Full Disk Access and Contacts granted (Automation reads `unknown` until its next script run), not paused, **sends on**. One approved reply has been sent (S1). The fork's token is revoked.
-**Next:** none required. Queued if Alex wants it: the deletion reconcile (`present`) Mac half, then the unproven cases listed under DONE 2026-11-15 20:17.
+**Next:** the deletion reconcile's PR (branch `present-reconcile`): merge once CI is green and Alex says yes, since the 03:30 updater then installs it and the first daily run follows. Then plan Step 7 acceptance with Alex.
 **Phase:** In use. Acceptance closed by Alex after S1, with sends left on.
 **Milestones:** Dependency proof ✓ · Scaffold ✓ · Safety core ✓ · Reading ✓ · Sending ✓ (S1 live) · Status and control ✓ · Packaging ✓ · Updates ✓ (rollback and scheduled install both seen live) · Runbooks ✓ · Cutover ✓ · Acceptance ✓ (U1–U6, S0–S1; rest skipped by Alex)
 
@@ -15,7 +15,7 @@ _Rewrite in place on every state change. Why things are the way they are goes in
 - The fork app: quit, Login Item off, still installed and paused as the fallback. Its token is revoked, so a rollback needs a fresh one (`cutover.md`).
 
 ## QUEUED
-- Deletion reconcile, the Mac half (`present`; homeless since the fork was retired): contract 2026-11-15 additions (2), plan `docs/plans/2026-11-15-imsg-present-reconcile.md` Task 14. Docs only so far; nothing built.
+- Deletion reconcile (`present`), plan `docs/plans/2026-11-15-imsg-present-reconcile.md` Task 14: built and unit-tested on branch `present-reconcile` (300 tests, gate passed on the MacBook, send-safety review no Critical or Important). Not merged, not installed, not run against HomeChat. Step 7 acceptance needs Alex.
 - Optional, only if Alex asks: the skipped acceptance cases (DONE 20:17).
 - For `homechat-bot`'s session: a WhatsApp nudge isn't withdrawn when its flag closes as `unsent` (LOG 19:13).
 

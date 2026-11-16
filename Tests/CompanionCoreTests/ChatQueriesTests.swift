@@ -85,6 +85,43 @@ final class ChatQueriesTests: XCTestCase {
         XCTAssertNil(try ChatQueries(path: f.url.path).firstRowID(since: now.addingTimeInterval(60)))
     }
 
+    func test_presentRowsListEveryRowInTheWindowByChatGUID() throws {
+        let f = try CompanionFixture()
+        let since: Int64 = 1_793_491_200
+        let start = Date(timeIntervalSince1970: TimeInterval(since))
+        let a = try f.addChat(guid: "any;-;+15555550100", style: 45, displayName: nil, handles: [alice])
+        // A second chat row with the same GUID: its rows belong to the same thread.
+        let a2 = try f.addChat(guid: "any;-;+15555550100", style: 45, displayName: nil, handles: [alice])
+        let b = try f.addChat(guid: "any;+;chat-test", style: 43, displayName: nil, handles: [alice, bob])
+        try f.addMessage(chats: [a], guid: "old", text: "x", date: start - 5, handle: alice)
+        try f.addMessage(chats: [a], guid: "in-1", text: "x", date: start + 10, handle: alice)
+        try f.addMessage(chats: [a2], guid: "in-2", date: start + 20, associatedType: 2000)
+        try f.addMessage(chats: [a, b], guid: "both", text: "x", date: start + 30, fromMe: true)
+        try f.addMessage(chats: [], guid: "no-chat", text: "x", date: start + 40, handle: alice)
+        let seconds = try f.addMessage(chats: [b], guid: "seconds", text: "x", date: start + 50, handle: alice)
+        try f.exec("UPDATE message SET date = \(Int64(start.timeIntervalSinceReferenceDate) + 50) WHERE ROWID = \(seconds)")
+        let empty = try f.addMessage(chats: [b], guid: "", text: "x", date: start + 60, handle: alice)
+        try f.exec("UPDATE message SET guid = NULL WHERE ROWID = \(empty)")
+        let rows = try ChatQueries(path: f.url.path).presentRows(sinceUnix: since)
+        XCTAssertEqual(Set(rows.keys), ["any;-;+15555550100", "any;+;chat-test"])
+        XCTAssertEqual(Set(rows["any;-;+15555550100"]?.map(\.guid) ?? []), ["in-1", "in-2", "both"])
+        XCTAssertEqual(Set(rows["any;+;chat-test"]?.map(\.guid) ?? []), ["both", "seconds"])
+        let seen = try XCTUnwrap(rows["any;+;chat-test"]?.first { $0.guid == "seconds" })
+        XCTAssertEqual(seen.date, start.timeIntervalSinceReferenceDate + 50, accuracy: 0.001)
+    }
+
+    // A row just before `since` is listed too: HomeChat's stored send time may round up into the window.
+    func test_presentRowsIncludeOneSecondOfMargin() throws {
+        let f = try CompanionFixture()
+        let since: Int64 = 1_793_491_200
+        let start = Date(timeIntervalSince1970: TimeInterval(since))
+        let a = try f.addChat(guid: "any;-;+15555550100", style: 45, displayName: nil, handles: [alice])
+        try f.addMessage(chats: [a], guid: "edge", text: "x", date: start - 0.5, handle: alice)
+        try f.addMessage(chats: [a], guid: "before", text: "x", date: start - 1.5, handle: alice)
+        let rows = try ChatQueries(path: f.url.path).presentRows(sinceUnix: since)
+        XCTAssertEqual(rows["any;-;+15555550100"]?.map(\.guid), ["edge"])
+    }
+
     func test_openIsReadOnly() throws {
         let f = try CompanionFixture()
         let q = try ChatQueries(path: f.url.path)

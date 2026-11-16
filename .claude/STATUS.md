@@ -1,21 +1,20 @@
 # Status: imsg-companion
 
-**Updated:** 2026-11-15 20:19 ET
-**At:** In use. The agent runs `2c8de3f` under launchd with Full Disk Access, Contacts and Automation granted, not paused, **sends on**. One approved reply has been sent (S1). The fork's token is revoked.
-**Next:** check the 2026-11-16 03:30 updater run (its first scheduled install, of `main`'s head) in `updater.log` and the status. Optional later: the unproven cases listed under DONE 20:17.
+**Updated:** 2026-11-16 06:00 ET
+**At:** In use. The agent runs `dfdf468` (installed by the 03:30 updater) under launchd with Full Disk Access and Contacts granted (Automation reads `unknown` until its next script run), not paused, **sends on**. One approved reply has been sent (S1). The fork's token is revoked.
+**Next:** none required. Queued if Alex wants it: the deletion reconcile (`present`) Mac half, then the unproven cases listed under DONE 2026-11-15 20:17.
 **Phase:** In use. Acceptance closed by Alex after S1, with sends left on.
-**Milestones:** Dependency proof ✓ · Scaffold ✓ · Safety core ✓ · Reading ✓ · Sending ✓ (S1 live) · Status and control ✓ · Packaging ✓ · Updates ✓ (rollback seen live; scheduled install pending 03:30) · Runbooks ✓ · Cutover ✓ · Acceptance ✓ (U1–U6, S0–S1; rest skipped by Alex)
+**Milestones:** Dependency proof ✓ · Scaffold ✓ · Safety core ✓ · Reading ✓ · Sending ✓ (S1 live) · Status and control ✓ · Packaging ✓ · Updates ✓ (rollback and scheduled install both seen live) · Runbooks ✓ · Cutover ✓ · Acceptance ✓ (U1–U6, S0–S1; rest skipped by Alex)
 
 _Rewrite in place on every state change. Why things are the way they are goes in [LOG.md](LOG.md) (append only). Format: the user-level `flight-deck` skill. This repo is public: no names, numbers, hosts or tokens here._
 
 ## RUNNING NOW
 - CI (`ci.yml`) on PRs and pushes to `main`: tests, the ad hoc app build and the Dependabot diff check. The `automerge` job runs only on Dependabot's PRs.
 - Dependabot (swift, daily, 3-day cooldown). No bump PR yet: the automerge live check (Task 12 Step 4) is pending.
-- `ImsgCompanion.app` in `~/Applications` on the MacBook, under launchd, running `2c8de3f` since 15:16 ET (`scripts/install.sh`, Alex approved). Full Disk Access, Contacts and Automation granted. Token in the Keychain, not paused, sends on (Alex, 19:16). The updater job is loaded and has not run since the reinstall (`runs = 0`). Its first scheduled run, 2026-11-16 03:30, should install `main`'s head with the fixed health check (U8's install case).
+- `ImsgCompanion.app` in `~/Applications` on the MacBook, under launchd, running `dfdf468` since 2026-11-16 03:31 ET (installed by the nightly updater). Full Disk Access and Contacts granted; Automation reads `unknown` because it is remembered per process and no script has run since the restart (the grant itself was not re-checked). Token in the Keychain, not paused, sends on (Alex, 2026-11-15 19:16). The updater runs nightly at 03:30.
 - The fork app: quit, Login Item off, still installed and paused as the fallback. Its token is revoked, so a rollback needs a fresh one (`cutover.md`).
 
 ## QUEUED
-- Check the 2026-11-16 03:30 updater run.
 - Deletion reconcile, the Mac half (`present`; homeless since the fork was retired): contract 2026-11-15 additions (2), plan `docs/plans/2026-11-15-imsg-present-reconcile.md` Task 14. Docs only so far; nothing built.
 - Optional, only if Alex asks: the skipped acceptance cases (DONE 20:17).
 - For `homechat-bot`'s session: a WhatsApp nudge isn't withdrawn when its flag closes as `unsent` (LOG 19:13).
@@ -27,6 +26,7 @@ _Rewrite in place on every state change. Why things are the way they are goes in
 - None.
 
 ## DONE
+- 2026-11-16 06:00 ET: the first scheduled updater run (03:30) installed `main`'s head `dfdf468` (`installed`, 03:31). The health mark kept moving afterwards (reads every few seconds, HomeChat status 2xx on its 15-minute cadence), `last_error` null, `watcher_restarts` 0, `previous/` holds the `2c8de3f` app. No messages arrived overnight (`last_uplink_at` null since the restart), so the new build's uplink and send are not yet exercised.
 - 2026-11-15 20:17 ET: Alex closed acceptance after S1 and kept sends on. Not run, so unproven live: S2–S5 (group, SMS with accents and emoji, changed participants, expiry), group/SMS/RCS preflights, a pause from WhatsApp (U7), an unsaved number (U9), and U8's test cases beyond tonight's scheduled install. `"$BIN" sends off` at the Mac is the proven stop.
 - 2026-11-15 20:13 ET: S1 passed. Alex approved one reply in HomeChat to the test contact. The agent sent it once (`sent`, `sent_service` `iMessage`, read-back `confirmed`), reported it 3 s after dispatch, and the test phone received it (Alex). The ledger record has no text field. The reply went to the thread the question arrived in (a second 1:1 chat for the test contact, labelled SMS), not the preflighted one.
 - 2026-11-15 19:48 ET: S0 passed for the iMessage 1:1: preflight `ready`, `automation_messages: granted` after Alex allowed the prompt (the first try timed out at -1712 while the prompt waited). Group, SMS and RCS preflights not run.

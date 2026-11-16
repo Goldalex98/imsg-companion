@@ -147,3 +147,10 @@ Append only. Newest at the bottom. Public: no personal data.
 - The Mac half was queued for the retired fork. HomeChat's server side is built, so the contract now states `present` as HomeChat's code accepts it (2026-11-15 additions (2)) and a new small plan (`docs/plans/2026-11-15-imsg-present-reconcile.md`, Task 14) covers the agent's side. The standalone-agent plan stays closed.
 - Decided in the docs: a separate present-only request once a day, 14-day window, per-thread `since` moved later past 2000 GUIDs, a superset of GUIDs (every row in the chat), never blocking message uplink, no same-day retry. HomeChat deletes at most 5 stored messages per entry and 20 per request, silently, so bulk deletes are not reconciled.
 - Docs only. Nothing built, no code changed.
+
+## 2026-11-16 06:00 ET — first scheduled updater install
+- The 03:30 updater run built, tested and installed `dfdf468` (PR #21's merge, docs only) and recorded `installed` at 03:31. That is U8's install case seen live, with the fixed health check from PR #17.
+- Checked on the MacBook at 05:57: the agent process started 03:31:07, `read_ok_at` advancing, `homechat_ok_at` within the 15-minute status cadence, `last_error` null, not paused, sends on. `failed_commits` still lists only `f1281f0`.
+- Automation reads `unknown` after any restart: `LastScriptResult` lives in memory, so the readout shows `granted` again only after the next preflight or send. The TCC grant itself was not re-checked.
+- `last_uplink_at` is null since the restart: no messages arrived overnight. Uplink and sending on this build are unproven until the next message.
+- `agent.log` holds only the Contacts framework's hourly `Could not fetch group ... making it a delete change type` lines, logged by the Contacts framework inside the agent process, not by the agent's own code.

@@ -16,6 +16,7 @@ _Rewrite in place on every state change. Why things are the way they are goes in
 
 ## QUEUED
 - Check the 2026-11-16 03:30 updater run.
+- Deletion reconcile, the Mac half (`present`; homeless since the fork was retired): contract 2026-11-15 additions (2), plan `docs/plans/2026-11-15-imsg-present-reconcile.md` Task 14. Docs only so far; nothing built.
 - Optional, only if Alex asks: the skipped acceptance cases (DONE 20:17).
 - For `homechat-bot`'s session: a WhatsApp nudge isn't withdrawn when its flag closes as `unsent` (LOG 19:13).
 

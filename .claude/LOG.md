@@ -142,3 +142,8 @@ Append only. Newest at the bottom. Public: no personal data.
 
 ## 2026-11-15 20:19 ET — acceptance closed
 - Alex called it done after S1 and kept sends on. Each case not run stays unproven live, as listed in STATUS. The first check of tonight's 03:30 updater run, its first scheduled install, is the next session's opening task.
+
+## 2026-11-15 — deletion reconcile (`present`) queued here
+- The Mac half was queued for the retired fork. HomeChat's server side is built, so the contract now states `present` as HomeChat's code accepts it (2026-11-15 additions (2)) and a new small plan (`docs/plans/2026-11-15-imsg-present-reconcile.md`, Task 14) covers the agent's side. The standalone-agent plan stays closed.
+- Decided in the docs: a separate present-only request once a day, 14-day window, per-thread `since` moved later past 2000 GUIDs, a superset of GUIDs (every row in the chat), never blocking message uplink, no same-day retry. HomeChat deletes at most 5 stored messages per entry and 20 per request, silently, so bulk deletes are not reconciled.
+- Docs only. Nothing built, no code changed.

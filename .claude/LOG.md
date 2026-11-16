@@ -113,3 +113,14 @@ Append only. Newest at the bottom. Public: no personal data.
 - U4 passes on HomeChat's stored state. A flag opened on the test question, then closed with `replied` when Alex's reply was stored.
   - HomeChat's flagger runs every 30 minutes. A new flag is hidden for 3 hours unless it names a date within 48 hours, so "seen on the phone" can't be checked the same day. The runbook's U4 now says so.
   - The flag was opened by a manual flagger pass that HomeChat's session ran. It used one call from HomeChat's daily cap and sent no message.
+
+## 2026-11-15 17:12 ET — PR #18 merged; updater not yet run
+- PR #18 merged as `b59f35e` once its CI run was green.
+- The updater has no scheduled result yet. It was reloaded by the 15:16 reinstall (`runs = 0`), and `updater.log` holds only the 15:01 `rolled_back` of `f1281f0`. Its first 03:30 run is 2026-11-16, and it should install `b59f35e`. That run is the first live proof of the fixed health check.
+
+## 2026-11-15 19:05 ET — Stage U: U5
+- Catch-up: the agent was booted out (its process exited about 12 s later). Alex's phone sent 2 texts, then the agent was bootstrapped again. The cursor moved 232756 → 232758, and the batch was accepted at 18:58:35. HomeChat holds exactly 232757–232758, both text.
+- Offline retry: Alex turned Wi-Fi off, wrote one message on the Mac and reconnected. The unified log shows failed uploads at 19:00:24 (-1004), 19:00:29 (-1009) and 19:00:40 (-1009), with a growing gap, then success at 19:01:02. HomeChat stored exactly row 232759. The status `last_error` was never seen set: snapshots are about a minute apart, and none fell inside the window. A phone text can't drive this test, because an offline Mac doesn't receive it. The runbook now says so, and checks the OS log.
+- SSN scrub: HomeChat counts 1 stored text with the marker and 0 with the digits, dashed or not. Where the removal happened wasn't asked. The pass condition doesn't depend on it.
+- Code skip: a code text in a thread Alex writes in (232761) is stored with its text. The never-written-thread case was not run: no sender was available. It stays covered by unit tests only. The runbook now notes that a real short-code text would do.
+- Nothing was sent. Only counts, ROWIDs, kinds and times were read.

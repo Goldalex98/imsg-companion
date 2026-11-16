@@ -139,3 +139,6 @@ Append only. Newest at the bottom. Public: no personal data.
 - First preflight: refused with -1712 (AppleEvent timeout) while the Automation prompt waited. tccd created the entry 20 s later. After Alex's Allow it was `ready`, and the readout showed `granted`.
 - S1: the test contact's question arrived in a different 1:1 chat for the same test contact (another handle, labelled SMS). Alex approved one reply in HomeChat. The agent sent exactly one row in that chat over iMessage: read-back `confirmed`, reported to HomeChat 3 s after dispatch. Alex confirmed the test phone got it. The ledger keeps `text_length` and `text_sha256`, with no text.
 - Not run: S2–S5 and the group, SMS and RCS preflights.
+
+## 2026-11-15 20:19 ET — acceptance closed
+- Alex called it done after S1 and kept sends on. Each case not run stays unproven live, as listed in STATUS. The first check of tonight's 03:30 updater run, its first scheduled install, is the next session's opening task.

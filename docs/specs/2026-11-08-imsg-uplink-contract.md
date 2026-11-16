@@ -224,3 +224,54 @@ The agent posts every 15 minutes and on any change. The response is `204`; `401`
 - `last_error` is short text with no message data, for example `"database_replaced"`.
 - `last_update.result` is one of `installed`, `rolled_back`, `failed`, `none`.
 - HomeChat stores the latest status for each device, shows it on request, and mentions staleness only in the twice-daily update.
+
+## 2026-11-15 additions (2): deletion reconcile (`present`)
+
+HomeChat's server side is built and deployed. It is optional: a body without `present` behaves as before. The Mac agent sends it (plan `docs/plans/2026-11-15-imsg-present-reconcile.md`). This section states what HomeChat's code accepts, not what an older design said.
+
+### Wire shape
+
+`POST /imsg/messages` takes one more optional top-level key:
+
+```json
+{
+  "device_id": "mac-1a2b3c4d",
+  "batch_id": "6f1c2d9e-3a4b-4c5d-8e7f-0a1b2c3d4e5f",
+  "cursor": 1234,
+  "first_run": false,
+  "threads": [],
+  "messages": [],
+  "present": [
+    {
+      "thread_guid": "any;-;+15555550100",
+      "since": 1763000000,
+      "guids": ["00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002"]
+    }
+  ]
+}
+```
+
+- `thread_guid` is the same chat GUID used in `threads[].guid` and `messages[].thread_guid`.
+- `since` is an integer in epoch seconds (not the ISO string `sent_at` uses). It must be a non-negative integer no older than 15 days at the server's clock, else the whole `present` is dropped.
+- `guids` is the complete list of message GUIDs that still exist in that thread in `chat.db` with a send time at or after `since`. It means "these are ALL of them". Listing extra GUIDs is harmless; leaving one out lets HomeChat delete its stored copy.
+- Every string is non-empty and at most 200 characters. At most 200 entries per request, one entry per `thread_guid`, and at most 2000 GUIDs per entry.
+- `threads`, `messages`, `cursor`, `first_run`, `device_id` and `batch_id` are still required, so a present-only request is an ordinary body with `"threads": []` and `"messages": []`.
+
+### What HomeChat does
+
+- Per entry it deletes its stored messages of that thread with `sent_at >= since` whose GUID is not in `guids`. Nothing in another thread, or before `since`, is touched. This only removes HomeChat's own stored copies. It never reaches the Mac.
+- Afterwards, if the thread has an open flag and no inbound message (text, attachment or unreadable) newer than Alex's last message remains, the flag closes as `deleted`.
+- An entry with an empty `guids` list is ignored (nothing deleted, no flag closed), so a deleted whole conversation leaves its flag open. Counted as `n_present_empty` in HomeChat's log.
+- Caps in code: an entry that would delete more than 5 stored messages is skipped whole, and so is any entry that would take the request past 20 deletions in all (nothing deleted, flag untouched). Counted as `n_present_capped` in HomeChat's log only. The response does not report it, so the agent cannot see it. A larger delete is therefore not reconciled and may stay unreconciled day after day.
+- A bad `present` never costs the request its messages. If `present` is malformed, over a limit (entries, GUIDs, string length), has a duplicate thread, or has a `since` that is too old, it is dropped whole and the rest of the body is stored normally. The response is `200` with `"present_skipped": true` added. A bad `messages` or `threads` part still rejects the request (`413`/`422`).
+- Replay guard: the request `cursor` is compared with the device's stored cursor. A lower cursor (an older batch replayed) means `present` is ignored, silently (`present_stale` in HomeChat's log only; the response is a plain `200`). An equal or higher cursor reconciles. A present-only request must therefore send the agent's current saved cursor, the same one the last accepted batch carried.
+- Order inside one request: deletes run before the request's own messages are inserted. The close-as-`deleted` check runs after the inserts, so an inbound message in the same request keeps the flag open.
+
+### Agent rules
+
+- Send it about once a day, for the last 14 days (`since` = now minus 14 days, inside the server's 15-day window with a day of slack for clock drift).
+- Send it in its own request (`messages: []`), never mixed into a normal batch, after any pending normal batch has been accepted, so a message that was in `chat.db` but not yet uplinked is never listed as missing (it would not be stored yet either, so this is only about ordering of the reads: read the GUID lists after the last accepted batch).
+- Keep each request under 900,000 bytes (the 1 MB limit with headroom), splitting threads across requests, one entry per thread per request.
+- A thread with more than 2000 GUIDs since `since` moves that thread's `since` later until the list fits. Never send a truncated list for the original `since`: a truncated list would delete stored messages.
+- Only send a thread whose list was read completely. If a read fails part-way, send nothing for that thread.
+- Treat `"present_skipped": true` as "not reconciled today" (log a count, no retry loop). `401`, `413`, `422`, `429`, `5xx` and offline behave as for any batch, but a `present` request never stops message uplink and is never retried before the next day's run.

@@ -161,3 +161,7 @@ Append only. Newest at the bottom. Public: no personal data.
 - MacBook gate: build, 300 tests, app build all pass. The send-safety review (Opus) found no Critical or Important issues. One of its Minors was re-graded Important by effect and fixed test-first: if the daily stamp can't be saved, no run happens, because otherwise every 2 s idle pass would post and use up HomeChat's shared per-token budget.
 - Deferred minors: the 200-character check counts graphemes, not code points (it can only cause a `present_skipped`, never a deletion); the daily query scans the whole message table on the service actor; a message Messages moves between chats is deleted from the old thread's stored copy (HomeChat's cap of 5 applies).
 - Not proven: the `main.swift` wiring, and any exchange with HomeChat (Step 7).
+
+## 2026-11-16 07:12 ET — deletion reconcile merged
+- Alex said merge after PR #23's CI was green. Merged as `8f51f54` with a merge commit. Merging is the deploy here: the 2026-11-17 03:30 updater installs `main`'s head, and the agent's first idle pass after that runs `present` without anyone watching. That is why the merge waited for his yes.
+- Unproven until then: the install, the `main.swift` wiring, and HomeChat accepting the request.

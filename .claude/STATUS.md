@@ -1,8 +1,8 @@
 # Status: imsg-companion
 
-**Updated:** 2026-11-16 06:35 ET
+**Updated:** 2026-11-16 07:15 ET
 **At:** In use. The agent runs `dfdf468` (installed by the 03:30 updater) under launchd with Full Disk Access and Contacts granted (Automation reads `unknown` until its next script run), not paused, **sends on**. One approved reply has been sent (S1). The fork's token is revoked.
-**Next:** the deletion reconcile's PR (branch `present-reconcile`): merge once CI is green and Alex says yes, since the 03:30 updater then installs it and the first daily run follows. Then plan Step 7 acceptance with Alex.
+**Next:** after 2026-11-17 03:30, check that the updater installed `main`'s head (with the deletion reconcile) and that the first daily `present` run wrote `present-result.json` (counts only). Then plan Step 7 acceptance with Alex.
 **Phase:** In use. Acceptance closed by Alex after S1, with sends left on.
 **Milestones:** Dependency proof ✓ · Scaffold ✓ · Safety core ✓ · Reading ✓ · Sending ✓ (S1 live) · Status and control ✓ · Packaging ✓ · Updates ✓ (rollback and scheduled install both seen live) · Runbooks ✓ · Cutover ✓ · Acceptance ✓ (U1–U6, S0–S1; rest skipped by Alex)
 
@@ -15,7 +15,8 @@ _Rewrite in place on every state change. Why things are the way they are goes in
 - The fork app: quit, Login Item off, still installed and paused as the fallback. Its token is revoked, so a rollback needs a fresh one (`cutover.md`).
 
 ## QUEUED
-- Deletion reconcile (`present`), plan `docs/plans/2026-11-15-imsg-present-reconcile.md` Task 14: built and unit-tested on branch `present-reconcile` (300 tests, gate passed on the MacBook, send-safety review no Critical or Important). Not merged, not installed, not run against HomeChat. Step 7 acceptance needs Alex.
+- Check the 2026-11-17 03:30 install and the first `present` run.
+- Deletion reconcile Step 7 acceptance with Alex (test contact; `present-now`; HomeChat's session confirms counts).
 - Optional, only if Alex asks: the skipped acceptance cases (DONE 20:17).
 - For `homechat-bot`'s session: a WhatsApp nudge isn't withdrawn when its flag closes as `unsent` (LOG 19:13).
 
@@ -26,6 +27,7 @@ _Rewrite in place on every state change. Why things are the way they are goes in
 - None.
 
 ## DONE
+- 2026-11-16 07:12 ET: PR #23 merged (`8f51f54`) on Alex's yes: the deletion reconcile (`present`), plan Task 14. PR CI green (43858489495). Built and unit-tested only: not installed, never run against HomeChat. The 03:30 updater installs it, and the first daily run follows on its own (HomeChat deletes at most 5 stored copies per thread).
 - 2026-11-16 06:00 ET: the first scheduled updater run (03:30) installed `main`'s head `dfdf468` (`installed`, 03:31). The health mark kept moving afterwards (reads every few seconds, HomeChat status 2xx on its 15-minute cadence), `last_error` null, `watcher_restarts` 0, `previous/` holds the `2c8de3f` app. No messages arrived overnight (`last_uplink_at` null since the restart), so the new build's uplink and send are not yet exercised.
 - 2026-11-15 20:17 ET: Alex closed acceptance after S1 and kept sends on. Not run, so unproven live: S2–S5 (group, SMS with accents and emoji, changed participants, expiry), group/SMS/RCS preflights, a pause from WhatsApp (U7), an unsaved number (U9), and U8's test cases beyond tonight's scheduled install. `"$BIN" sends off` at the Mac is the proven stop.
 - 2026-11-15 20:13 ET: S1 passed. Alex approved one reply in HomeChat to the test contact. The agent sent it once (`sent`, `sent_service` `iMessage`, read-back `confirmed`), reported it 3 s after dispatch, and the test phone received it (Alex). The ledger record has no text field. The reply went to the thread the question arrived in (a second 1:1 chat for the test contact, labelled SMS), not the preflighted one.

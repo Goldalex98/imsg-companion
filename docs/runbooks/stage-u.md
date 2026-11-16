@@ -64,9 +64,9 @@ Hard rules:
   - Action: Claude runs `launchctl bootout "$UID_GUI/$AGENT"`. The test contact sends 2 texts. Claude bootstraps the agent again.
   - Pass: HomeChat's count rises by 2 after the restart, and by no more.
 - **Offline retry:**
-  - Action: Alex takes the Mac offline. The test contact sends 1 text. Alex brings the Mac back online.
-  - Check: while offline, the status `last_error` is a network code.
-  - Pass: after reconnecting, HomeChat's count rises by 1, and `last_error` clears.
+  - Action: Alex turns the Mac's network off, writes one message in Messages on the Mac so a row lands in `chat.db` locally, then turns the network back on. A phone text can't be used: an offline Mac doesn't receive it.
+  - Check: the agent's failed uploads, in `/usr/bin/log show --predicate 'process == "imsg-companion" AND eventMessage CONTAINS "finished with error"'` (`NSURLErrorDomain` -1004 or -1009). The status `last_error` shows the error only if a snapshot falls inside the offline window. Snapshots are written about once a minute, so a short window can miss it.
+  - Pass: after reconnecting, HomeChat's count rises by 1, and `last_error` is null.
 - **SSN scrub:**
   - Action: the test contact sends a text containing a made-up SSN-shaped number, such as `123-45-6789`.
   - Check: HomeChat counts stored texts containing `[SSN removed]` and stored texts containing that number.
@@ -75,6 +75,7 @@ Hard rules:
   - Action: a code text ("your code is 482913") arrives in a thread Alex has never written in. Then one arrives in a thread he writes in.
   - Check: HomeChat's stored kind and whether text is present, per message.
   - Pass: the first is stored as `skipped` with no text. The second is stored with its text.
+  - The first case needs a sender whose thread Alex has never written in. A real one-time code from a short code is fine. If none is available, record the case as not run: unit tests are its only cover.
 
 ## U6: an unsend reaches HomeChat and clears its flag
 - **Action:** the test contact sends a question, then unsends it within 2 minutes.

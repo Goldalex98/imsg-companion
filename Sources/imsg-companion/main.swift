@@ -92,6 +92,10 @@ func runAgent() async -> Never {
                                                                     health: health) },
                                   snapshot: snapshot)
     let statusFile = AgentStatusFile(folder: support)
+    let present = PresentReconciler(configURL: configURL, tokens: tokens,
+                                    makeUplink: { UplinkClient(baseURL: $0, token: $1) }, serializer: serializer,
+                                    snapshot: { await service.presentSnapshot(sinceUnix: $0) })
+    let presentFiles = PresentFiles(folder: support)
 
     Task {
         while !stopping.value {
@@ -100,6 +104,8 @@ func runAgent() async -> Never {
             health.record(status, now: Date())
             await relay.flush()
             await preflights.handle(now: Date()) { await executor.preflight(chatRowID: $0) }
+            // Straight after the tick that left the reader idle, with no tick in between its read and its posts.
+            await presentFiles.handle { await present.runIfDue(after: status, force: $0) }
             await pace(seconds: 2)
         }
     }
@@ -225,6 +231,10 @@ case .update:
 case .resetCursor:
     do { try ConfigEdits.resetCursor(configURL: configURL) } catch { fail("couldn't save the config") }
     print("cursor reset: the next read starts from the first-run window")
+
+case .presentNow:
+    do { try PresentFiles(folder: support).request() } catch { fail("couldn't write the request") }
+    print("requested; the running agent writes present-result.json once its reader is idle")
 
 case .preflight(let chatRowID):
     do { try PreflightFiles(folder: support).request(chatRowID: chatRowID) } catch { fail("couldn't write the request") }

@@ -15,6 +15,25 @@ final class CompanionModelsTests: XCTestCase {
                            threads: [thread], messages: [message])
     }
 
+    func test_presentEncodesContractShape() throws {
+        var batch = sampleBatch()
+        batch.threads = []; batch.messages = []
+        batch.present = [PresentEntry(threadGUID: "any;-;+15555550100", since: 1_793_491_200, guids: ["g1", "g2"])]
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: CompanionJSON.encoder.encode(batch)) as? [String: Any])
+        let entry = try XCTUnwrap((object["present"] as? [[String: Any]])?.first)
+        XCTAssertEqual(Set(entry.keys), ["thread_guid", "since", "guids"])
+        XCTAssertEqual(entry["since"] as? Int, 1_793_491_200)
+        XCTAssertEqual(entry["guids"] as? [String], ["g1", "g2"])
+    }
+
+    func test_ackReadsPresentSkipped() throws {
+        let plain = try CompanionJSON.decoder.decode(UplinkAck.self, from: Data(#"{"accepted_cursor":5}"#.utf8))
+        XCTAssertNil(plain.presentSkipped)
+        let skipped = try CompanionJSON.decoder.decode(
+            UplinkAck.self, from: Data(#"{"accepted_cursor":5,"present_skipped":true}"#.utf8))
+        XCTAssertEqual(skipped.presentSkipped, true)
+    }
+
     func test_batchEncodesContractKeys() throws {
         let data = try CompanionJSON.encoder.encode(sampleBatch())
         let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])

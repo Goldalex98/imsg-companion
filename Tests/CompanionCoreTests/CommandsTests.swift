@@ -27,6 +27,7 @@ final class CommandsTests: XCTestCase {
         XCTAssertEqual(Command.parse(["reset-cursor"]), .resetCursor)
         XCTAssertEqual(Command.parse(["prompt-contacts"]), .promptContacts)
         XCTAssertEqual(Command.parse(["preflight", "17"]), .preflight(chatRowID: 17))
+        XCTAssertEqual(Command.parse(["present-now"]), .presentNow)
         XCTAssertEqual(Command.parse(["setup", "https://uplink-test.invalid"]),
                        .setup(url: URL(string: "https://uplink-test.invalid")!))
         XCTAssertNil(Command.parse(["sends"]))
@@ -100,6 +101,20 @@ final class CommandsTests: XCTestCase {
         XCTAssertFalse(FileManager.default.fileExists(atPath: files.requestURL.path))
         let result = try XCTUnwrap(files.result())
         XCTAssertEqual(result, PreflightFiles.Result(chatRowID: 7, result: "refused", code: 9004, at: now))
+    }
+
+    // A present-now request stays until a run actually happens, then the outcome is written.
+    func test_presentRequestForcesOneRunAndKeepsItsOutcome() async throws {
+        let files = PresentFiles(folder: folder)
+        let at = Date(timeIntervalSince1970: 1_794_000_000)
+        let outcome = PresentOutcome(result: .done, threads: 3, leftOut: 0, requests: 1, skipped: 0, code: nil, at: at)
+        await files.handle { force in XCTAssertFalse(force); return nil }
+        try files.request()
+        await files.handle { force in XCTAssertTrue(force); return nil }
+        XCTAssertTrue(FileManager.default.fileExists(atPath: files.requestURL.path), "not due yet: kept")
+        await files.handle { _ in outcome }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: files.requestURL.path))
+        XCTAssertEqual(files.result(), outcome)
     }
 
     func test_agentStatusFileRoundTrips() throws {

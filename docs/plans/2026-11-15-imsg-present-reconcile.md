@@ -54,3 +54,16 @@
 - HomeChat's caps (5 deletions per entry, 20 per request) mean a bulk delete on the Mac is not reconciled. That is by design on HomeChat's side; the agent does not try to work around it.
 - A thread deleted whole on the Mac sends no entry (HomeChat ignores an empty list), so its stored copies are not reconciled.
 - Edits are not covered here (deferred in the main plan).
+
+## Changes from the plan review (2026-11-16)
+
+The one independent plan review found the plan sound with changes. Built as follows, superseding the text above where they differ:
+
+- **`since` is a whole Unix second, used for both the read and the wire.** The read lists every row dated at or after `since` minus one second. HomeChat keeps `sent_at` to the second, so a row just before a fractional boundary (or one whose stored time rounds up) is still listed. The same margin applies to a moved `since`.
+- **Moved `since`:** the first of `ceil(d) + 1` and `floor(d) + 2` (where `d` is the 2000th newest row's date) whose list, margin included, fits in 2000. One move always fits, so there is no 20-move loop. An empty list (the newest 2000 rows share one second) leaves the thread out, counted.
+- **Rows are grouped by `chat.guid`**, joined across every chat row with that GUID, with GUIDs deduplicated. Rows with a NULL or empty GUID are skipped. A thread whose GUID, or any of whose message GUIDs, is over 200 characters is left out, because one bad string makes HomeChat drop the whole `present`.
+- **Due** means the tick just returned `.idle` with `pendingEstimate == 0` and a cursor, and the config is not paused and has a token. `lastPresentAttemptAt` is stamped only after those checks pass, so a busy moment doesn't use up the day.
+- **One read for all threads.** If it fails, or the file at the path changed before or after it, the whole run is abandoned (nothing sent). This replaces "a read error on one thread omits only that thread".
+- **Atomic within one loop pass:** the reconciler reads and posts in one call, straight after `service.tick()`, so no message batch lands between its read and its posts.
+- **`present-now`** writes `present-request.json`. The running agent's next idle pass runs once, ignoring only the daily gate (not a 401 block), and writes counts-only `present-result.json`. A second process would bypass the serializer and has no Full Disk Access.
+- After `reset-cursor`, HomeChat keeps the higher old cursor, so `present` is ignored as `present_stale` until the agent's cursor climbs past it. Expected, not a failure.

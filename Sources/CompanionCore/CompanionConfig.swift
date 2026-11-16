@@ -17,6 +17,12 @@ public struct CompanionConfig: Codable, Sendable, Equatable {
     /// Set by `reset-cursor`: the first run reads from here (the first-run window before the replacement) instead
     /// of counting back from now. Cleared once a cursor is saved.
     public var firstRunSince: Date?
+    /// The deletion reconcile's last attempt, whatever its outcome: at most one a day.
+    public var lastPresentAttemptAt: Date?
+    /// Its last run that HomeChat answered 2xx throughout. Informational.
+    public var lastPresentAt: Date?
+    /// After a 401: a digest of the URL and token it was refused with. No run until either changes.
+    public var presentAuthBlockedFor: String?
 
     public static let supportFolder = "imsg-companion"
 
@@ -54,7 +60,9 @@ public struct CompanionConfig: Codable, Sendable, Equatable {
 
     enum CodingKeys: String, CodingKey {
         case uplinkURL = "uplink_url", deviceID = "device_id", paused, cursor, sendsEnabled = "sends_enabled", tunables,
-             databaseReplacedAt = "database_replaced_at", firstRunSince = "first_run_since"
+             databaseReplacedAt = "database_replaced_at", firstRunSince = "first_run_since",
+             lastPresentAttemptAt = "last_present_attempt_at", lastPresentAt = "last_present_at",
+             presentAuthBlockedFor = "present_auth_blocked_for"
     }
 
     public init(from decoder: Decoder) throws {
@@ -67,6 +75,9 @@ public struct CompanionConfig: Codable, Sendable, Equatable {
         tunables = try c.decodeIfPresent(Tunables.self, forKey: .tunables) ?? Tunables()
         databaseReplacedAt = try c.decodeIfPresent(Date.self, forKey: .databaseReplacedAt)
         firstRunSince = try c.decodeIfPresent(Date.self, forKey: .firstRunSince)
+        lastPresentAttemptAt = try c.decodeIfPresent(Date.self, forKey: .lastPresentAttemptAt)
+        lastPresentAt = try c.decodeIfPresent(Date.self, forKey: .lastPresentAt)
+        presentAuthBlockedFor = try c.decodeIfPresent(String.self, forKey: .presentAuthBlockedFor)
     }
 
     public static func newDeviceID() -> String {

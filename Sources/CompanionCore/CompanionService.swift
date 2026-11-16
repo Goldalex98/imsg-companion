@@ -199,6 +199,15 @@ public actor CompanionService {
         }
     }
 
+    /// The deletion reconcile's read, through the reader `tick()` uses. nil when no reader is open or the file at
+    /// the path changed around the read, so a run never lists a replaced database.
+    public func presentSnapshot(sinceUnix: Int64) -> [String: [PresentRow]]? {
+        guard let reader, CompanionFileIdentity.of(path: databasePath) == reader.fileIdentity,
+              let rows = try? reader.presentRows(sinceUnix: sinceUnix),
+              CompanionFileIdentity.of(path: databasePath) == reader.fileIdentity else { return nil }
+        return rows
+    }
+
     // MARK: - Reading
 
     /// One page from IMsgCore, mapped and scrubbed. The scan position is IMsgCore's `nextRowID` (the last physical row

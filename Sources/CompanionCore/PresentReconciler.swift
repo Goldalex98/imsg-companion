@@ -71,7 +71,12 @@ public struct PresentReconciler: Sendable {
         if config.presentAuthBlockedFor == key { return nil }
         let at = now()
         if !force, let last = config.lastPresentAttemptAt, at.timeIntervalSince(last) < Self.interval { return nil }
-        try? CompanionConfig.update(at: configURL) { $0.lastPresentAttemptAt = at; $0.presentAuthBlockedFor = nil }
+        // Unsaved, the daily gate wouldn't hold and every idle pass would post again: no run at all.
+        do {
+            try CompanionConfig.update(at: configURL) { $0.lastPresentAttemptAt = at; $0.presentAuthBlockedFor = nil }
+        } catch {
+            return nil
+        }
 
         let since = Int64(floor(at.timeIntervalSince1970 - Self.window))
         guard let rows = await snapshot(since) else {

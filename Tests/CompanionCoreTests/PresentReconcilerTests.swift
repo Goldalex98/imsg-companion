@@ -133,6 +133,18 @@ final class PresentReconcilerTests: XCTestCase {
         XCTAssertEqual(uplink.batches.count, 2)
     }
 
+    // If the daily stamp can't be saved, nothing is sent: otherwise every 2 s idle pass would post again.
+    func test_noRunWhenTheDailyStampCannotBeSaved() async throws {
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: folder.path)
+        defer { try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: folder.path) }
+        let r = reconciler(fixed(["any;-;t1": [row("g1", 10)]]))
+        for _ in 0..<3 {
+            let outcome = await r.runIfDue(after: idle)
+            XCTAssertNil(outcome)
+        }
+        XCTAssertTrue(uplink.batches.isEmpty)
+    }
+
     func test_forceIgnoresTheDailyGate() async throws {
         let r = reconciler(fixed(["any;-;t1": [row("g1", 10)]]))
         _ = await r.runIfDue(after: idle)

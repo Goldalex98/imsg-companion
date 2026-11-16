@@ -124,3 +124,18 @@ Append only. Newest at the bottom. Public: no personal data.
 - SSN scrub: HomeChat counts 1 stored text with the marker and 0 with the digits, dashed or not. Where the removal happened wasn't asked. The pass condition doesn't depend on it.
 - Code skip: a code text in a thread Alex writes in (232761) is stored with its text. The never-written-thread case was not run: no sender was available. It stays covered by unit tests only. The runbook now notes that a real short-code text would do.
 - Nothing was sent. Only counts, ROWIDs, kinds and times were read.
+
+## 2026-11-15 19:13 ET — Stage U: U6
+- The first try didn't count. The question was sent from Alex's own phone, so it was stored as his outgoing row (232762) and took the thread out of the flag queue. U6 needs the test contact to send the question and to unsend it from their own phone.
+- Second try: row 232763 was received at 19:10:00. HomeChat's session ran one flagger pass by hand, and flag 23 opened at 19:10:58 with reason `date`, visible at once. The unsend came at 19:11:24. HomeChat stored the row once as `unsent` with its text wiped, and closed flag 23 with `unsent` in the same second. The agent's cursor stayed at 232763, and `watcher_restarts` stayed 0.
+- The agent's `last_uplink_at` stayed at the message's 19:10:00 after the unsend relay. The unsend goes through its own path. Not a failure: noted for the status readout.
+- HomeChat-side finding, outside this repo: the bot's nudge loop sent a WhatsApp nudge for flag 23 at 19:11:23, 1 s before the unsend closed it. Nothing withdraws a nudge whose flag closes as `unsent`, so a numbered reply to it points at a closed flag. This is for `homechat-bot`'s own session to weigh. It changes nothing here.
+- Whether the nudge appeared on Alex's phone is unconfirmed: "sent" means WhatsApp accepted it.
+
+## 2026-11-15 20:18 ET — Stage S: revoke, S0, S1
+- Alex chose to skip the rest of Stage U (U7, U8's test steps and U9). Unproven live as a result: a pause from WhatsApp, and how an unsaved number is handled. The updater's install proves itself at 03:30.
+- `sends on` was run at the Mac on Alex's say-so. HomeChat's session confirmed that no send had ever been queued, then revoked the fork's device token at 19:33:58. The new Mac is the only linked device.
+- HomeChat has no chat ROWIDs: its threads are keyed by chat guid. The chat ROWID was read on the Mac with one read-only query that prints integers only. The runbook now says so.
+- First preflight: refused with -1712 (AppleEvent timeout) while the Automation prompt waited. tccd created the entry 20 s later. After Alex's Allow it was `ready`, and the readout showed `granted`.
+- S1: the test contact's question arrived in a different 1:1 chat for the same test contact (another handle, labelled SMS). Alex approved one reply in HomeChat. The agent sent exactly one row in that chat over iMessage: read-back `confirmed`, reported to HomeChat 3 s after dispatch. Alex confirmed the test phone got it. The ledger keeps `text_length` and `text_sha256`, with no text.
+- Not run: S2–S5 and the group, SMS and RCS preflights.

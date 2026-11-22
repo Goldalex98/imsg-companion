@@ -1,20 +1,6 @@
-# imsg-companion project guidance
-
-- Goal: a small signed macOS agent (`ImsgCompanion.app`, launchd) that reads Alex's iMessage/SMS/RCS threads through `IMsgCore` (`openclaw/imsg`, pinned), sends them to HomeChat, clears a flag when he replies, and sends a reply only after he approves its exact text. It replaces the companion in the `Goldalex98/msgblast-imessage` fork. Design: `docs/specs/2026-11-14-imsg-standalone-agent-design.md`; contract: `docs/specs/2026-11-08-imsg-uplink-contract.md`; plan: `docs/plans/2026-11-15-imsg-standalone-agent.md`.
-- Read `.claude/STATUS.md` first, skim the end of `.claude/LOG.md`, then the design. Change behaviour only through the approved design or a plan in `docs/plans/`; record decisions there.
-- Never write the Messages database (`chat.db`), mark messages read, send typing indicators or touch Messages' UI state. Every read is read-only SQLite. Link only `IMsgCore`; never call its send, launch, bridge, typing, tailer or `ContactResolver.create` code (a test enforces this).
-- Messages are sent only by the send executor, only for a send Alex approved with its exact text, to an existing thread whose identity re-check passes. An `ambiguous` or uncertain send is never retried. `sends_enabled` is set only at the Mac (`sends on`); nothing from HomeChat can turn it on. Never send a real message, write Contacts or reset permissions to produce evidence; real sends happen only in an approved Stage S acceptance, to a test contact, with Alex's typed yes.
-- Public repo: no names, phone numbers, emails, chat GUIDs, message text, the HomeChat host, tokens or private paths in code, tests, fixtures, docs, commits or PR text. Config lives outside the repo (`~/Library/Application Support/imsg-companion/` plus the login Keychain). Test fixtures are synthetic `chat.db` data only.
-- Dev sessions never read real chat content. Debug runs against the real `chat.db` print only counts and shapes.
-- Machines: the MacBook (Xcode 27) builds, tests, signs and runs the agent; CI runs on GitHub's `xcode-27` runner with no secrets. Say which host ran what. Alex makes every System Settings change himself.
-- Git: feature branch, PR in this repo (`gh ... --repo Goldalex98/imsg-companion`), Claude merges it itself with a merge commit once its CI run is green and mergeable (standing approval from Alex, as for the fork). No squash, no force-push, no auto-merge, except the CI `automerge` job for Dependabot PRs that touch only `Package.swift`/`Package.resolved` (Alex, 2026-11-14). Wait on CI by head sha with a background `gh run watch <id> --exit-status`. Nothing is opened on `openclaw/imsg` or `mgalpert/msgblast` without Alex's yes.
-- HomeChat's half lives in `~/dev/homechat-bot` and changes only through that repo's PRs under its rules. From here, never read its `.env*`, `secrets/` or `data/`.
-- Say what was proven end to end (a flag seen on Alex's phone, a reply received once by the test contact) versus only built or configured.
-- Before declaring completion, run the gate exactly as in `.claude/agents/quality-gate.md` (it matches the allow rules).
+@AGENTS.md
 
 ## Claude Code setup
 - No project MCP servers.
 - `.claude/settings.json` pre-allows only the gate commands and denies reading `.env*`, `*.local.json`, `.local/`, and the Messages and Contacts stores under `~/Library`. Read denies don't cover Bash; the rules above do.
-- Agents: `quality-gate` (runs the gate, never fixes) and `send-safety-reviewer` (read-only review of changes to reading, scrubbing, uplink, sending, permissions, signing and updates). User-level `evidence-verifier`, `implementer` and the global git-guard hook also apply.
-- Uses the user-level `flight-deck` skill: `.claude/STATUS.md` is rewritten in place on every state change, `.claude/LOG.md` is append-only. Both are public.
-- No GUI: the design gate doesn't apply.
+- Claude Code also uses its user-level evidence-verifier, implementer and global git-guard hook.

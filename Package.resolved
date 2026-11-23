@@ -1,5 +1,5 @@
 {
-  "originHash" : "173ab4e1c458e317c6c78e472ed603ace54e2b1846771f462f56aaeb23da06ad",
+  "originHash" : "143bb9d3a55d24cddabb5c3de7423864f6842c3b61858f98adcbcf43c39f2a18",
   "pins" : [
     {
       "identity" : "commander",
@@ -24,8 +24,8 @@
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/openclaw/imsg.git",
       "state" : {
-        "revision" : "1bc0679663bf3978a744a61a5a9161d9ba518764",
-        "version" : "0.21.0"
+        "revision" : "f7e0bab7086a238d1acc5bb2e7f72b213d2eb019",
+        "version" : "0.21.1"
       }
     },
     {

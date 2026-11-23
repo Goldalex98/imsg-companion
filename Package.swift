@@ -6,7 +6,7 @@ let package = Package(
   platforms: [.macOS(.v14)],
   dependencies: [
     // Pinned to an exact release; Dependabot proposes bumps (docs/specs design §5.6).
-    .package(url: "https://github.com/openclaw/imsg.git", exact: "0.21.0"),
+    .package(url: "https://github.com/openclaw/imsg.git", exact: "0.21.1"),
   ],
   targets: [
     .target(name: "CompanionCore", dependencies: [.product(name: "IMsgCore", package: "imsg")]),
